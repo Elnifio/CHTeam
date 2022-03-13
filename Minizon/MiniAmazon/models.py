@@ -9,3 +9,8 @@ class Item(db.Model):
     rating = db.Column(db.Numeric())
     price = db.Column(db.Numeric(), nullable=False)
     description = db.Column(db.String(200), nullable=False)
+
+
+class Category(db.model):
+    id = db.Column(db.Integer(), primary_key=True)
+    name = db.Column(db.String(length=30), nullable=False)
