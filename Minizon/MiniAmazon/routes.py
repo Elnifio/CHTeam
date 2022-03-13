@@ -6,7 +6,6 @@ from MiniAmazon.models import Item
 @app.route('/')
 @app.route('/home')
 def home_page():
-    print(111)
     return render_template('home.html')
 
 
