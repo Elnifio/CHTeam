@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block title %}
+{% endblock %}
+
+{% block content %}
+<!-- TODO: search form -->
+<!-- TODO: filter tool bar -->
+
+<!-- Table for Displaying Bars-->
+<table class="table table-hover table-striped">
+    <thead class="thead-dark">
+    <tr>
+        <!-- Your Columns HERE -->
+        <th scope="col">Image</th>
+        <th scope="col">Name</th>
+        <th scope="col">Price</th>
+        <th scope="col">Rating</th>
+        <th scope="col">Options</th>
+
+    </tr>
+    </thead>
+    <tbody>
+    <!-- Your rows inside the table HERE: -->
+    {% for item in items %}
+        <tr>
+            <td>{{ item.image }}</td>
+            <td>{{ item.name }}</td>
+            <td>{{ item.price }}</td>
+            <td>{{ item.rating }}$</td>
+            <td>
+                <button class="btn btn-outline btn-info">More Info</button>
+                <button class="btn btn-outline btn-success">Purchase</button>
+            </td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
