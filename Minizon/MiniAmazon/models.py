@@ -65,6 +65,8 @@ class User(db.Model):
                                    lazy=True, foreign_keys="SellerRating.rater_id")
     received_rates = db.relationship("SellerRating", backref="rater",
                                      lazy=True, foreign_keys="SellerRating.seller_id")
+    seller_inventory = db.relationship('Item', secondary=inventory, lazy ='dynamic', backref=db.backref('items', lazy=True))
+    sell_order = db.relationship('Order', backref='sell_o', lazy=True, foreign_keys='Order.seller_id')
 
     def __repr__(self):
         return f'<User {self.id}>'
@@ -122,3 +124,20 @@ class SellerRating(db.Model):
 
     def __repr__(self):
         return "<%r Rating: (%r -> %r) @ %r>: %r" % (self.rate, self.rater, self.seller, self.ts, self.comment)
+    
+class Order(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    item_name = db.Column(db.String(length=30), nullable=False)
+    address = db.Column(db.String(100))
+    Date = db.Column(db.DateTime, nullable=False, default = datetime.utcnow)
+    total_price = db.Column(db.Float, nullable=False)
+    number_of_item = db.Column(db.Integer, nullable=False)
+    status = db.Column(db.Text, nullable=False)
+
+    item_id = db.Column(db.Integer, db.ForeignKey('item.id'), nullable=False)
+    seller_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    buyer_id = db.Column(db.Integer, nullable=False)
+
+    def __repr__(self):
+        return f'<Order {self.id}>'
+   
