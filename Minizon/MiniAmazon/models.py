@@ -57,7 +57,4 @@ class Order(db.Model):
 
     item_id = db.Column(db.Integer, db.ForeignKey('item.id'), nullable=False)
     seller_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-
-    def __repr__(self):
-        return f'<Order {self.name}>'
     
