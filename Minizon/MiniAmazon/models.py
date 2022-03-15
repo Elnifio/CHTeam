@@ -40,9 +40,6 @@ class User(db.Model):
     seller_inventory = db.relationship('Item', secondary=inventory, lazy ='dynamic', backref=db.backref('items', lazy=True))
     sell_order = db.relationship('Order', backref='sell_o', lazy=True, foreign_keys='Order.seller_id')
 
-    def __repr__(self):
-        return f'<User {self.name}>'
-
 
 
 
@@ -58,3 +55,5 @@ class Order(db.Model):
     item_id = db.Column(db.Integer, db.ForeignKey('item.id'), nullable=False)
     seller_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     
+    def __repr__(self):
+        return f'<Order {self.name}>'
