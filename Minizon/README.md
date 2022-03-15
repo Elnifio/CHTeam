@@ -44,4 +44,4 @@ use remote connection by default
 - databaase: postgres
 - password: password
 ## Er Diagram
-![alt text](er.png)
+![alt text](https://github.com/Elnifio/CHTeam/blob/dev/Minizon/er.png)
