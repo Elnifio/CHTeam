@@ -40,8 +40,8 @@ class User(db.Model):
     seller_inventory = db.relationship('Item', secondary=inventory, lazy ='dynamic', backref=db.backref('items', lazy=True))
     sell_order = db.relationship('Order', backref='sell_o', lazy=True, foreign_keys='Order.seller_id')
 
-
-
+    def __repr__(self):
+        return f'<User {self.id}>'
 
 class Order(db.Model):
     id = db.Column(db.Integer, primary_key=True)
