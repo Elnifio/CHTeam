@@ -18,6 +18,8 @@ class Item(db.Model):
     creator_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     order_item = db.relationship('Order', backref='items', lazy='dynamic')
 
+    rates = db.relationship("ItemRating", backref='item', lazy=True)
+
     def __repr__(self):
         return f'<Item {self.name}>'
 
@@ -33,25 +35,90 @@ class Category(db.Model):
 
 
 
+cart = db.Table('cart',
+                db.Column('item_id', db.Integer, db.ForeignKey('item.id'), primary_key=True),
+                db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
+                db.Column('quantity', db.Integer, nullable=False)
+)
+
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), nullable=False)
+    address = db.Column(db.String(100))
+    password = db.Column(db.String(100))
+    balance = db.Column(db.Integer, nullable=False, default=100)
+    email = db.Column(db.Integer, nullable=False, unique=True)
 
-    item_create = db.relationship('Item', backref='creator', lazy='dynamic')
-    seller_inventory = db.relationship('Item', secondary=inventory, lazy ='dynamic', backref=db.backref('items', lazy=True))
-    sell_order = db.relationship('Order', backref='sell_o', lazy=True, foreign_keys='Order.seller_id')
+    # add relationships below
+    items_create = db.relationship('Item', backref='creator', lazy='dynamic')
+    items_cart = db.relationship('Item', secondary='cart', lazy='select')
+
+    receivers = db.relationship('Conversation', backref='sender',
+                                lazy=True, foreign_keys="Conversation.sender_id")
+    senders = db.relationship('Conversation', backref='receiver',
+                              lazy=True, foreign_keys="Conversation.receiver_id")
+
+    item_rates = db.relationship("ItemRating", backref='rater', lazy=True)
+    votes = db.relationship("Upvote", backref="voter", lazy=True)
+
+    seller_rates = db.relationship("SellerRating", backref="seller",
+                                   lazy=True, foreign_keys="SellerRating.rater_id")
+    received_rates = db.relationship("SellerRating", backref="rater",
+                                     lazy=True, foreign_keys="SellerRating.seller_id")
 
     def __repr__(self):
         return f'<User {self.id}>'
 
-class Order(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    item_name = db.Column(db.String(length=30), nullable=False)
-    address = db.Column(db.String(100))
-    Date = db.Column(db.DateTime, nullable=False, default = datetime.utcnow)
-    total_price = db.Column(db.Float, nullable=False)
-    number_of_item = db.Column(db.Integer, nullable=False)
-    status = db.Column(db.Text, nullable=False)
 
-    item_id = db.Column(db.Integer, db.ForeignKey('item.id'), nullable=False)
-    seller_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+class Conversation(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    sender_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    receiver_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    content = db.Column(db.String(600), nullable=False, default="")
+    ts = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     
+    def __repr__(self):
+        return '<Conversation (%r -> %r) @ %r>: %r' % (self.sender, self.receiver, self.ts, self.content)
+
+
+class ItemRating(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    item_id = db.Column(db.Integer, db.ForeignKey('item.id'), nullable=False)
+    rater_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    comment = db.Column(db.String(1000), nullable=False, default="")
+    rate = db.Column(db.Integer, nullable=False, default=5)
+    ts = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    upvote = db.relationship("Upvote", backref="rating", lazy=True)
+
+    rateNonNegative = db.CheckConstraint("rate >= 0", name="rateNonNegative")
+    rateMaximum = db.CheckConstraint("rate <= 5", name="rateMaximum")
+
+    def __repr__(self):
+        return "<%r Rating: (%r -> %r) @ %r>: %r" % (self.rate, self.rater, self.item, self.ts, self.comment)
+
+
+class Upvote(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    rating_id = db.Column(db.Integer, db.ForeignKey("item_rating.id"), nullable=False)
+    voter_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    def __repr__(self):
+        return "<Upvote> %r -> %r" % (self.rater, self.rating)
+
+
+class SellerRating(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    seller_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    rater_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    comment = db.Column(db.String(1000), nullable=False, default="")
+    rate = db.Column(db.Integer, nullable=False, default=5)
+    ts = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    upvote = db.relationship("Upvote", backref="rating", lazy=True)
+
+    rateNonNegative = db.CheckConstraint("rate >= 0", name="rateNonNegative")
+    rateMaximum = db.CheckConstraint("rate <= 5", name="rateMaximum")
+
+    def __repr__(self):
+        return "<%r Rating: (%r -> %r) @ %r>: %r" % (self.rate, self.rater, self.seller, self.ts, self.comment)
