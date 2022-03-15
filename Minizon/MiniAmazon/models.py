@@ -1,6 +1,11 @@
 from MiniAmazon import db
 from datetime import datetime
 
+inventory = db.Table('inventory',
+    db.Column('seller_id', db.Integer, db.ForeignKey('user.id'), nullable=False, primary_key = True),
+    db.Column('item_id', db.Integer, db.ForeignKey('item.id'), nullable=False, primary_key = True),
+    db.Column('quantity', db.Integer, nullable = False)
+)
 
 class Item(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -11,6 +16,7 @@ class Item(db.Model):
 
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=False)
     creator_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    order_item = db.relationship('Order', backref='items', lazy='dynamic')
 
     rates = db.relationship("ItemRating", backref='item', lazy=True)
 
@@ -28,12 +34,12 @@ class Category(db.Model):
         return f'<Category {self.name}>'
 
 
+
 cart = db.Table('cart',
                 db.Column('item_id', db.Integer, db.ForeignKey('item.id'), primary_key=True),
                 db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
                 db.Column('quantity', db.Integer, nullable=False)
 )
-
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
