@@ -18,7 +18,6 @@ class Item(db.Model):
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=False)
     creator_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
-
     rates = db.relationship("ItemRating", backref='item', lazy=True)
 
     def __repr__(self):
@@ -139,7 +138,6 @@ class SellerUpvote(db.Model):
         return "<Seller Upvote> %r -> %r" % (self.rater, self.rating)
 
 
-
 class Order(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     item_name = db.Column(db.String(length=30), nullable=False)
@@ -153,7 +151,7 @@ class Order(db.Model):
     seller_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     buyer_id = db.Column(db.Integer, nullable=False)
 
-    items = db.relationship('Order', lazy='dynamic')
+    items = db.relationship('Item', lazy=True)
 
     def __repr__(self):
         return f'<Order {self.id}>'
