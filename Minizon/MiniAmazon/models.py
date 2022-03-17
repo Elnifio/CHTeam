@@ -60,12 +60,13 @@ class User(db.Model):
                               lazy=True, foreign_keys="Conversation.receiver_id")
 
     item_rates = db.relationship("ItemRating", backref='rater', lazy=True)
-    votes = db.relationship("Upvote", backref="voter", lazy=True)
+    item_votes = db.relationship("ItemUpvote", backref="voter", lazy=True)
 
     seller_rates = db.relationship("SellerRating", backref="seller",
                                    lazy=True, foreign_keys="SellerRating.rater_id")
     received_rates = db.relationship("SellerRating", backref="rater",
                                      lazy=True, foreign_keys="SellerRating.seller_id")
+    seller_votes = db.relationship("SellerUpvote", backref="voter", lazy=True)
 
     seller_inventory = db.relationship('Item', secondary=inventory,
                                        lazy='dynamic', backref=db.backref('items', lazy=True))
