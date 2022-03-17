@@ -2,10 +2,11 @@ from MiniAmazon import db
 from datetime import datetime
 
 inventory = db.Table('inventory',
-    db.Column('seller_id', db.Integer, db.ForeignKey('user.id'), nullable=False, primary_key = True),
-    db.Column('item_id', db.Integer, db.ForeignKey('item.id'), nullable=False, primary_key = True),
-    db.Column('quantity', db.Integer, nullable = False)
+    db.Column('seller_id', db.Integer, db.ForeignKey('user.id'), nullable=False, primary_key=True),
+    db.Column('item_id', db.Integer, db.ForeignKey('item.id'), nullable=False, primary_key=True),
+    db.Column('quantity', db.Integer, nullable=False)
 )
+
 
 class Item(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -34,12 +35,12 @@ class Category(db.Model):
         return f'<Category {self.name}>'
 
 
-
 cart = db.Table('cart',
                 db.Column('item_id', db.Integer, db.ForeignKey('item.id'), primary_key=True),
                 db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
                 db.Column('quantity', db.Integer, nullable=False)
 )
+
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -65,7 +66,9 @@ class User(db.Model):
                                    lazy=True, foreign_keys="SellerRating.rater_id")
     received_rates = db.relationship("SellerRating", backref="rater",
                                      lazy=True, foreign_keys="SellerRating.seller_id")
-    seller_inventory = db.relationship('Item', secondary=inventory, lazy ='dynamic', backref=db.backref('items', lazy=True))
+
+    seller_inventory = db.relationship('Item', secondary=inventory,
+                                       lazy='dynamic', backref=db.backref('items', lazy=True))
     sell_order = db.relationship('Order', backref='sell_o', lazy=True, foreign_keys='Order.seller_id')
 
     def __repr__(self):
@@ -91,22 +94,22 @@ class ItemRating(db.Model):
     rate = db.Column(db.Integer, nullable=False, default=5)
     ts = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
-    upvote = db.relationship("Upvote", backref="rating", lazy=True)
+    upvotes = db.relationship("ItemUpvote", backref="rating", lazy=True)
 
     rateNonNegative = db.CheckConstraint("rate >= 0", name="rateNonNegative")
     rateMaximum = db.CheckConstraint("rate <= 5", name="rateMaximum")
 
     def __repr__(self):
-        return "<%r Rating: (%r -> %r) @ %r>: %r" % (self.rate, self.rater, self.item, self.ts, self.comment)
+        return "<%r Item Rating: (%r -> %r) @ %r>: %r" % (self.rate, self.rater, self.item, self.ts, self.comment)
 
 
-class Upvote(db.Model):
+class ItemUpvote(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     rating_id = db.Column(db.Integer, db.ForeignKey("item_rating.id"), nullable=False)
     voter_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
     def __repr__(self):
-        return "<Upvote> %r -> %r" % (self.rater, self.rating)
+        return "<Item Upvote> %r -> %r" % (self.rater, self.rating)
 
 
 class SellerRating(db.Model):
@@ -117,20 +120,30 @@ class SellerRating(db.Model):
     rate = db.Column(db.Integer, nullable=False, default=5)
     ts = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
-    upvote = db.relationship("Upvote", backref="rating", lazy=True)
+    upvotes = db.relationship("SellerUpvote", backref="rating", lazy=True)
 
     rateNonNegative = db.CheckConstraint("rate >= 0", name="rateNonNegative")
     rateMaximum = db.CheckConstraint("rate <= 5", name="rateMaximum")
 
     def __repr__(self):
-        return "<%r Rating: (%r -> %r) @ %r>: %r" % (self.rate, self.rater, self.seller, self.ts, self.comment)
+        return "<%r Seller Rating: (%r -> %r) @ %r>: %r" % (self.rate, self.rater, self.seller, self.ts, self.comment)
+
+
+class SellerUpvote(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    rating_id = db.Column(db.Integer, db.ForeignKey("seller_rating.id"), nullable=False)
+    voter_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    def __repr__(self):
+        return "<Seller Upvote> %r -> %r" % (self.rater, self.rating)
+
 
 
 class Order(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     item_name = db.Column(db.String(length=30), nullable=False)
     address = db.Column(db.String(100))
-    Date = db.Column(db.DateTime, nullable=False, default = datetime.utcnow)
+    Date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     total_price = db.Column(db.Float, nullable=False)
     number_of_item = db.Column(db.Integer, nullable=False)
     status = db.Column(db.Text, nullable=False)
