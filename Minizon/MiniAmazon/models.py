@@ -16,7 +16,7 @@ class Item(db.Model):
 
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=False)
     creator_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    order_item = db.relationship('Order', backref='items', lazy='dynamic')
+
 
     rates = db.relationship("ItemRating", backref='item', lazy=True)
 
@@ -45,9 +45,9 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), nullable=False)
     address = db.Column(db.String(100))
-    password = db.Column(db.String(100))
-    balance = db.Column(db.Integer, nullable=False, default=100)
-    email = db.Column(db.Integer, nullable=False, unique=True)
+    password = db.Column(db.String(60), nullable=False)
+    balance = db.Column(db.Float, nullable=False, default=100)
+    email = db.Column(db.String(100), nullable=False, unique=True)
 
     # add relationships below
     items_create = db.relationship('Item', backref='creator', lazy='dynamic')
@@ -124,7 +124,8 @@ class SellerRating(db.Model):
 
     def __repr__(self):
         return "<%r Rating: (%r -> %r) @ %r>: %r" % (self.rate, self.rater, self.seller, self.ts, self.comment)
-    
+
+
 class Order(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     item_name = db.Column(db.String(length=30), nullable=False)
@@ -137,6 +138,8 @@ class Order(db.Model):
     item_id = db.Column(db.Integer, db.ForeignKey('item.id'), nullable=False)
     seller_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     buyer_id = db.Column(db.Integer, nullable=False)
+
+    items = db.relationship('Order', lazy='dynamic')
 
     def __repr__(self):
         return f'<Order {self.id}>'
