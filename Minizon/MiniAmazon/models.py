@@ -158,21 +158,31 @@ class SellerUpvote(db.Model):
 
 class Order(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    item_name = db.Column(db.String(length=30), nullable=False)
     address = db.Column(db.String(100))
     Date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     total_price = db.Column(db.Float, nullable=False)
-    number_of_item = db.Column(db.Integer, nullable=False)
     status = db.Column(db.Text, nullable=False)
 
-    item_id = db.Column(db.Integer, db.ForeignKey('item.id'), nullable=False)
     seller_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     buyer_id = db.Column(db.Integer, nullable=False)
 
-    items = db.relationship('Item', lazy=True)
-
-    # TODO: this is one item/order
+    detail = db.relationship('Order_Detail', backref='order',lazy=True)
 
     def __repr__(self):
         return f'<Order {self.id}>'
+
+class Order_Detail(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    item_name = db.Column(db.String(length=30), nullable=False)
+    price = db.Column(db.Float, nullable=False)
+    number_of_item = db.Column(db.Integer, nullable=False)
+
+
+    order_id = db.Column(db.Integer, db.ForeignKey('order.id'), nullable=False)
+    item_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    items = db.relationship('Item', lazy=True)
+
+    def __repr__(self):
+        return f'<Order_Detail {self.id}>'
    
