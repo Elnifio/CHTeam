@@ -1,8 +1,9 @@
 from MiniAmazon import app, db
 from flask import render_template, redirect, url_for, flash
-from MiniAmazon.models import Item, User
+from MiniAmazon.models import Item, User, ItemRating
 from MiniAmazon.forms import RegisterForm, LoginForm
 from flask_login import login_user, login_required, logout_user, current_user
+from sqlalchemy import func
 
 
 @app.route('/')
@@ -72,6 +73,8 @@ def logout_page():
 @login_required
 def item_info_page(id):
     item = Item.query.get_or_404(id)
+    rates = ItemRating.query.with_entities(func.avg(ItemRating.rate).label('average')).filter(ItemRating.item_id == id).all()
+
     return render_template('item_info.html', item=item)
 
 
