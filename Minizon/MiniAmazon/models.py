@@ -16,6 +16,7 @@ class Item(db.Model):
     name = db.Column(db.String(length=30), nullable=False)
     image = db.Column(db.String(100))
     description = db.Column(db.Text, nullable=False)
+    avg_price = db.Column(db.Float, default=0.0)
 
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=False)
     creator_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
