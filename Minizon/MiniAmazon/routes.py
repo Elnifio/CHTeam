@@ -73,9 +73,11 @@ def logout_page():
 @login_required
 def item_info_page(id):
     item = Item.query.get_or_404(id)
-    rates = ItemRating.query.with_entities(func.avg(ItemRating.rate).label('average')).filter(ItemRating.item_id == id).all()
-
-    return render_template('item_info.html', item=item)
+    average = ItemRating.query.\
+        with_entities(func.avg(ItemRating.rate).label('average')).\
+        filter(ItemRating.item_id == id).all()[0][0]
+    ratings = ItemRating.query.filter(ItemRating.item_id == id).all()
+    return render_template('item_info.html', item=item, reviews=ratings, average=average)
 
 
 @app.errorhandler(404)

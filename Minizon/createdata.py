@@ -4,14 +4,16 @@ from sqlalchemy import func
 
 import random
 random.seed(42)
-
+print("Dropping all data")
 db.drop_all()
+print("Creating all data")
 db.create_all()
 
 users = []
 categories = []
 items = []
 
+print("Creating Users")
 for i in range(5):
     user = User(name="User %s" % i, password="test password", email="user%s email" % i)
     users.append(user)
@@ -19,6 +21,7 @@ for i in range(5):
 
 db.session.commit()
 
+print("Creating Categories")
 for i in range(3):
     c = Category(name="Category %s" % i)
     categories.append(c)
@@ -29,6 +32,7 @@ db.session.commit()
 random.shuffle(users)
 random.shuffle(categories)
 
+print("Creating Items")
 for i in range(5):
     creator = users[i % len(users)]
     category = categories[i % len(categories)]
@@ -43,6 +47,7 @@ db.session.commit()
 
 random.shuffle(items)
 
+print("Create Ratings")
 for i in range(5):
     item = items[i % len(items)]
     commenter = users[i % len(users)]
