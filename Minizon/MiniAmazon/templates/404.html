@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+
+{% block title %}
+    Market
+{% endblock %}
+{% block content %}
+    <style>
+
+    </style>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Responsive 404 page </title>
+
+    </head>
+    <body>
+    <div class="container">
+        <h2>404</h2>
+        <h3>Oops, nothing here...</h3>
+        <p>Please Check the URL</p>
+        <p>Otherwise, <a href={{ url_for('home_page') }}>Click here</a> to redirect to homepage.</p>
+    </div>
+    </body>
+    </html>
+{% endblock %}
