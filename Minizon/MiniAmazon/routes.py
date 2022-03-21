@@ -76,8 +76,20 @@ def item_info_page(id):
     average = ItemRating.query.\
         with_entities(func.avg(ItemRating.rate).label('average')).\
         filter(ItemRating.item_id == id).all()[0][0]
+
     ratings = ItemRating.query.filter(ItemRating.item_id == id).all()
-    return render_template('item_info.html', item=item, reviews=ratings, average=average)
+
+    distribution = ItemRating.query.filter(ItemRating.item_id == id).\
+        with_entities(ItemRating.rate, func.count(ItemRating.rater_id).label("cnt")).\
+        group_by(ItemRating.rate).all()
+
+    actuals = {x: 0 for x in range(6)}
+    for item in distribution:
+        actuals[item[0]] = item[1]
+
+    return render_template('item_info.html', item=item,
+                           reviews=ratings, average=round(average, 1) if average is not None else average,
+                           distribution=actuals, num_reviews=len(ratings))
 
 
 @app.errorhandler(404)

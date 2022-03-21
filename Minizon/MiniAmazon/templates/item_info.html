@@ -32,10 +32,32 @@
         </button>
     </div>
 
-    <div>
+    {# TODO: Modify the style here later #}
 
+    <div id="ratingComponent">
         <ul class="list-group list-group-flush">
+            <li class="list-group-item">Rating: {{ average }} / 5</li>
 
+            <ul class="list-group list-group-flush">
+            {% for rate in distribution %}
+                <li class="list-group-item">
+                    {{ rate }} star:
+                    <div class="progress">
+                        <div class="progress-bar"role="progressbar"
+                             style="width: {{ distribution[rate] * 100 // num_reviews }}%"
+                             aria-valuenow="{{ distribution[rate] * 100 // num_reviews }}"
+                             aria-valuemin="0"
+                             aria-valuemax="100">
+                        </div>
+                    </div>
+                </li>
+            {% endfor %}
+            </ul>
+            <li class="list-group-item">{{ distribution }}</li>
+
+            {% for review in reviews %}
+                <li class="list-group-item">{{ review.__repr__() }}</li>
+            {% endfor %}
         </ul>
     </div>
 {% endblock %}
