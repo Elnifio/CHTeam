@@ -5,6 +5,13 @@ from MiniAmazon.forms import RegisterForm, LoginForm
 from flask_login import login_user, login_required, logout_user, current_user
 from sqlalchemy import func
 
+# ----------------
+# HELPER METHODS
+# ----------------
+def to_boolean_mask(nstar):
+    nstar = min(nstar, 5)
+    nstar = max(nstar, 0)
+    return [True] * nstar + [False] * (5 - nstar)
 
 @app.route('/')
 @app.route('/home')
@@ -89,7 +96,8 @@ def item_info_page(id):
 
     return render_template('item_info.html', item=item,
                            reviews=ratings, average=round(average, 1) if average is not None else average,
-                           distribution=actuals, num_reviews=len(ratings))
+                           distribution=actuals, num_reviews=len(ratings),
+                           boolean_mask=to_boolean_mask)
 
 
 @app.errorhandler(404)

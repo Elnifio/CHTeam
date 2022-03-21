@@ -34,27 +34,61 @@
 
     {# TODO: Modify the style here later #}
 
-    <div id="ratingComponent">
-        <ul class="list-group list-group-flush">
-            <li class="list-group-item">Rating: {{ average }} / 5</li>
+    <div id="itemRating" class="card">
+        {# Shows the summary statistics of the reviews #}
+        <div class="card-header">
+            <h5 class="card-title">Average Rating: {{ average }} / 5</h5>
+            <div class="container-fluid">
+                {% for score in distribution %}
+                    <div class="row" style="display:flex;align-items:center;">
+                        <div class="col-auto align-middle">{{ score }} star: </div>
+                        <div class="col align-middle">
+                            <div class="progress" style="height:5px;margin:0;">
+                                <div class="progress-bar" role="progressbar"
+                                     style="width: {{ distribution[score] * 100 // num_reviews }}%"
+                                     aria-valuenow="{{ distribution[score] * 100 // num_reviews }}"
+                                     aria-valuemin="0"
+                                     aria-valuemax="100">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
 
-            <ul class="list-group list-group-flush">
-            {% for rate in distribution %}
+        {# Shows each comment's content #}
+        <ul class="list-group list-group-flush">
+            {% for review in reviews %}
                 <li class="list-group-item">
-                    {{ rate }} star:
-                    <div class="progress">
-                        <div class="progress-bar"role="progressbar"
-                             style="width: {{ distribution[rate] * 100 // num_reviews }}%"
-                             aria-valuenow="{{ distribution[rate] * 100 // num_reviews }}"
-                             aria-valuemin="0"
-                             aria-valuemax="100">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                {# rater name #}
+                                {{ review.rater }}
+                            </h5>
+                            <h6 class="card-subtitle mb-2 text-muted">
+                                {# Score #}
+                                {% for star_prop in boolean_mask(review.rate) %}
+                                    {{ star_prop }}
+                                {% endfor %}
+                            </h6>
+                            <p class="card-text">
+                                {# comment content #}
+                                {{ review.comment }}
+                            </p>
+                            {# rate timestamp #}
+                            {# A button for clicking upvotes #}
                         </div>
                     </div>
                 </li>
             {% endfor %}
-            </ul>
-            <li class="list-group-item">{{ distribution }}</li>
+        </ul>
+    </div>
 
+    <div id="ratingComponent">
+        <ul class="list-group list-group-flush">
+            <li class="list-group-item">{{ distribution }}</li>
             {% for review in reviews %}
                 <li class="list-group-item">{{ review.__repr__() }}</li>
             {% endfor %}
