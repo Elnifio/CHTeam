@@ -1,5 +1,7 @@
-from MiniAmazon import db
+from MiniAmazon import db, login_manager, bcrypt
 from datetime import datetime
+from flask_login import UserMixin
+# user log in doc: https://flask-login.readthedocs.io/en/latest/#how-it-works
 
 inventory = db.Table('inventory',
     db.Column('seller_id', db.Integer, db.ForeignKey('user.id'), nullable=False, primary_key=True),
@@ -41,7 +43,12 @@ cart = db.Table('cart',
 )
 
 
-class User(db.Model):
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(user_id)
+
+
+class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), nullable=False)
     address = db.Column(db.String(100))
@@ -68,8 +75,19 @@ class User(db.Model):
     seller_votes = db.relationship("SellerUpvote", backref="voter", lazy=True)
 
     seller_inventory = db.relationship('Item', secondary=inventory,
-                                       lazy='dynamic', backref=db.backref('items', lazy=True))
-    sell_order = db.relationship('Order', backref='sell_o', lazy=True, foreign_keys='Order.seller_id')
+                                       lazy=True, backref=db.backref('sellers', lazy=True))
+    sell_order = db.relationship('Order', backref='seller', lazy=True, foreign_keys='Order.seller_id')
+
+    @property
+    def password_plain(self):
+        return self.password_plain
+
+    @password_plain.setter
+    def password_plain(self, plaintext):
+        self.password = bcrypt.generate_password_hash(plaintext).decode('utf-8')
+
+    def check_password_correct(self, plaintext):
+        return bcrypt.check_password_hash(self.password, plaintext)
 
     def __repr__(self):
         return f'<User {self.id}>'
@@ -152,6 +170,8 @@ class Order(db.Model):
     buyer_id = db.Column(db.Integer, nullable=False)
 
     items = db.relationship('Item', lazy=True)
+
+    # TODO: this is one item/order
 
     def __repr__(self):
         return f'<Order {self.id}>'
