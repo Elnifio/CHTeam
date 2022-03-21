@@ -6,7 +6,8 @@ from flask_login import UserMixin
 inventory = db.Table('inventory',
     db.Column('seller_id', db.Integer, db.ForeignKey('user.id'), nullable=False, primary_key=True),
     db.Column('item_id', db.Integer, db.ForeignKey('item.id'), nullable=False, primary_key=True),
-    db.Column('quantity', db.Integer, nullable=False)
+    db.Column('quantity', db.Integer, nullable=False),
+    db.Column('price', db.Float, nullable=False)
 )
 
 
@@ -14,7 +15,6 @@ class Item(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(length=30), nullable=False)
     image = db.Column(db.String(100))
-    price = db.Column(db.Float, nullable=False)
     description = db.Column(db.Text, nullable=False)
 
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=False)
@@ -166,23 +166,32 @@ class Order(db.Model):
     seller_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     buyer_id = db.Column(db.Integer, nullable=False)
 
-    detail = db.relationship('Order_Detail', backref='order',lazy=True)
+    items = db.relationship('Item', secondary='order_items', lazy='dynamic')
 
     def __repr__(self):
         return f'<Order {self.id}>'
 
-class Order_Detail(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    item_name = db.Column(db.String(length=30), nullable=False)
-    price = db.Column(db.Float, nullable=False)
-    number_of_item = db.Column(db.Integer, nullable=False)
+
+order_items = db.Table(
+    'order_items',
+    db.Column('order_id', db.Integer, db.ForeignKey('order.id'), primary_key=True),
+    db.Column('item_id', db.Integer, db.ForeignKey('item.id'), primary_key=True),
+    db.Column('quantity', db.Integer, nullable=False),
+    db.Column('price', db.Float, nullable=False)
+)
 
 
-    order_id = db.Column(db.Integer, db.ForeignKey('order.id'), nullable=False)
-    item_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    # id = db.Column(db.Integer, primary_key=True)
+    # item_name = db.Column(db.String(length=30), nullable=False)
+    # price = db.Column(db.Float, nullable=False)
+    # number_of_item = db.Column(db.Integer, nullable=False)
+    #
+    #
+    # order_id = db.Column(db.Integer, db.ForeignKey('order.id'), nullable=False)
+    # item_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    #
+    # items = db.relationship('Item', lazy=True)
+    #
+    # def __repr__(self):
+    #     return f'<Order_Detail {self.id}>'
 
-    items = db.relationship('Item', lazy=True)
-
-    def __repr__(self):
-        return f'<Order_Detail {self.id}>'
-   
