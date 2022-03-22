@@ -37,6 +37,7 @@
     <div id="itemRating" class="card">
         {# Shows the summary statistics of the reviews #}
         <div class="card-header">
+            {% if num_reviews != 0 %}
             <h5 class="card-title">Average Rating: {{ average }} / 5</h5>
             <div class="container-fluid">
                 {% for score in distribution %}
@@ -55,6 +56,26 @@
                     </div>
                 {% endfor %}
             </div>
+            {% else %}
+                <h5 class="card-title">No Ratings currently exists</h5>
+                <div class="container-fluid">
+                    {% for score in distribution %}
+                        <div class="row" style="display:flex;align-items:center;">
+                            <div class="col-auto align-middle">{{ score }} star: </div>
+                            <div class="col align-middle">
+                                <div class="progress" style="height:5px;margin:0;">
+                                    <div class="progress-bar" role="progressbar"
+                                         style="width: 0%"
+                                         aria-valuenow="0"
+                                         aria-valuemin="0"
+                                         aria-valuemax="100">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
         </div>
 
         {# Shows each comment's content #}
@@ -70,27 +91,30 @@
                             <h6 class="card-subtitle mb-2 text-muted">
                                 {# Score #}
                                 {% for star_prop in boolean_mask(review.rate) %}
-                                    {{ star_prop }}
+                                    {% if star_prop %}
+                                        <i class="fa fa-star"></i>
+                                    {% else %}
+                                        <i class="fa fa-star-o"></i>
+                                    {% endif %}
                                 {% endfor %}
                             </h6>
                             <p class="card-text">
                                 {# comment content #}
                                 {{ review.comment }}
                             </p>
+                            <div class="d-flex">
+{#                                <button type="button" class="btn">#}
+{#                                    #}
+{#                                </button>#}
+                                {%  %}
+                                <span>{{ current }}</span>
+                                <span>{{ review.ts }}</span>
+                            </div>
                             {# rate timestamp #}
                             {# A button for clicking upvotes #}
                         </div>
                     </div>
                 </li>
-            {% endfor %}
-        </ul>
-    </div>
-
-    <div id="ratingComponent">
-        <ul class="list-group list-group-flush">
-            <li class="list-group-item">{{ distribution }}</li>
-            {% for review in reviews %}
-                <li class="list-group-item">{{ review.__repr__() }}</li>
             {% endfor %}
         </ul>
     </div>

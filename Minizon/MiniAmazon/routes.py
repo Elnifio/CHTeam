@@ -8,10 +8,13 @@ from sqlalchemy import func
 # ----------------
 # HELPER METHODS
 # ----------------
+# returns a boolean mask of length 5
+# that represents the ratings
 def to_boolean_mask(nstar):
     nstar = min(nstar, 5)
     nstar = max(nstar, 0)
     return [True] * nstar + [False] * (5 - nstar)
+
 
 @app.route('/')
 @app.route('/home')
@@ -80,12 +83,27 @@ def logout_page():
 @login_required
 def item_info_page(id):
     item = Item.query.get_or_404(id)
+
+    # cursor.execute("select avg(rate) from ItemRating where item_id == ?", (id))
     average = ItemRating.query.\
         with_entities(func.avg(ItemRating.rate).label('average')).\
         filter(ItemRating.item_id == id).all()[0][0]
 
+    # cursor.execute("select * from ItemRating where item_id == ?", (id))
     ratings = ItemRating.query.filter(ItemRating.item_id == id).all()
+    # ratings = ItemRating.query.\
+    #     filter(ItemRating.item_id == id).\
+    #     with_entities(ItemRating.rater.label("rater"),
+    #                   ItemRating.comment.label("comment"),
+    #                   ItemRating.rate.label("rate"),
+    #                   ItemRating.ts.label("ts"),
+    #
+    #                   )
 
+    # cursor.execute("select rate, count(rater_id) as cnt
+    #                   from ItemRating
+    #                   where item_id == ?
+    #                   group by rate", (id))
     distribution = ItemRating.query.filter(ItemRating.item_id == id).\
         with_entities(ItemRating.rate, func.count(ItemRating.rater_id).label("cnt")).\
         group_by(ItemRating.rate).all()
@@ -94,10 +112,15 @@ def item_info_page(id):
     for item in distribution:
         actuals[item[0]] = item[1]
 
+    # cursor.execute("select
+    #                   from ItemRating
+    #                       inner join ItemUpvote on ItemRating.id == ItemUpvote.rating_id", ())
+
     return render_template('item_info.html', item=item,
                            reviews=ratings, average=round(average, 1) if average is not None else average,
                            distribution=actuals, num_reviews=len(ratings),
-                           boolean_mask=to_boolean_mask)
+                           boolean_mask=to_boolean_mask,
+                           current=current_user)
 
 
 @app.errorhandler(404)
