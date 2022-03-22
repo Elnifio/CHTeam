@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+
+{% block title %}
+    Inventory
+{% endblock %}
+
+{% block content %}
+<!-- TODO: search form -->
+<!-- TODO: change quantity/price tool bar -->
+
+<!-- Table for Displaying Bars-->
+<div class="container">
+<table class="table table-hover table-striped">
+    <thead class="thead-dark">
+    <tr>
+        <!-- Your Columns HERE -->
+        <th scope="col">Name</th>
+        <th scope="col">Price</th>
+        <th scope="col">Quantity</th>
+        <th scope="col">Options</th>
+
+    </tr>
+    </thead>
+    <tbody>
+    <!-- Your rows inside the table HERE: -->
+    {% for each_item in inventory %}
+        <tr>
+            <td>{{ each_item.item_id }}</td>
+            <td>{{ each_item.price }}</td>
+            <td>{{ each_item.quantity }}</td>
+            <td>
+                <a class="btn btn-outline btn-info" href="{{ url_for('item_info_page', id=each_item.item_id) }}">More Info</a>
+                <button class="btn btn-outline btn-success">Edit</button>
+            </td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+{% endblock %}

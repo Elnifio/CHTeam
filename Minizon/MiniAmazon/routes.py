@@ -18,6 +18,11 @@ def market_page():
     items = Item.query.all()
     return render_template('market.html', items=items)
 
+@app.route('/inventory')
+@login_required
+def inventory_page():
+    inventory = User.seller_inventory.query.all()
+    return render_template('inventory.html', inventory=inventory)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register_page():
