@@ -78,6 +78,22 @@
             {% endif %}
         </div>
 
+        <script>
+            function clickUpvote(rating_id, current_user) {
+                console.log(`User ${current_user} clicked on ${rating_id}`);
+                axios.post("/item_upvote", {
+                    user: current_user,
+                    rating: rating_id
+                }).then(function (response) {
+                    let result = response.data;
+                    document.getElementById(`review-num-upvotes-${rating_id}`).innerText = result.upvotes
+                    document.getElementById(`review-icon-${rating_id}`).className = result.voted ? "fa fa-thumbs-up" : "fa fa-thumbs-o-up"
+                }).catch(function (error) {
+                    console.log(error);
+                })
+            }
+        </script>
+
         {# Shows each comment's content #}
         <ul class="list-group list-group-flush">
             {% for review in reviews %}
@@ -86,7 +102,7 @@
                         <div class="card-body">
                             <h5 class="card-title">
                                 {# rater name #}
-                                {{ review.rater }}
+                                {{ review.commenter }}
                             </h5>
                             <h6 class="card-subtitle mb-2 text-muted">
                                 {# Score #}
@@ -103,11 +119,12 @@
                                 {{ review.comment }}
                             </p>
                             <div class="d-flex">
-{#                                <button type="button" class="btn">#}
-{#                                    #}
-{#                                </button>#}
-                                {%  %}
-                                <span>{{ current }}</span>
+                                <button type="button" class="btn btn-outline-danger" onclick="clickUpvote({{ review.rating_id }}, {{ current.id }})">
+                                    <i
+                                        class="{{ "fa fa-thumbs-o-up" if not review.is_voted else "fa fa-thumbs-up" }}"
+                                        id="review-icon-{{ review.rating_id }}"></i>
+                                    <span id="review-num-upvotes-{{ review.rating_id }}">{{ review.num_upvotes }}</span>
+                                </button>
                                 <span>{{ review.ts }}</span>
                             </div>
                             {# rate timestamp #}

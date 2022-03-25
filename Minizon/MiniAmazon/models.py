@@ -123,9 +123,8 @@ class ItemRating(db.Model):
 
 
 class ItemUpvote(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    rating_id = db.Column(db.Integer, db.ForeignKey("item_rating.id"), nullable=False)
-    voter_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    rating_id = db.Column(db.Integer, db.ForeignKey("item_rating.id"), nullable=False, primary_key=True)
+    voter_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, primary_key=True)
 
     def __repr__(self):
         return "<Item Upvote> %r -> %r" % (self.voter, self.rating)

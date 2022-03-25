@@ -3,7 +3,8 @@
 # ----------------
 from MiniAmazon import db
 from MiniAmazon.models import *
-from sqlalchemy import func
+from sqlalchemy import func, case
+from sqlalchemy.sql import text
 
 # ----------------
 # RANDOM GENERATOR
@@ -27,7 +28,7 @@ def new_seed():
 # ----------------
 # CONFIGS
 # ----------------
-jump = True            # Controls if we skips the data generation part
+jump = False            # Controls if we skips the data generation part
 
 # --------
 # DATA GENERATION SPECIFIC CONFIG
@@ -79,7 +80,7 @@ def create_table():
 @data_log()
 def create_user():
     for i in range(genconf['nusers']):
-        user = User(name="User %s" % i, password="test password", email="user%s email" % i)
+        user = User(name="User %s" % i, password="TestPassword", email="user%s@email.com" % i)
         db.session.add(user)
     db.session.commit()
 
@@ -128,13 +129,18 @@ def create_item_ratings():
 def create_item_upvotes():
     users = User.query.all()
     ratings = ItemRating.query.all()
-    for _ in range(genconf['nitemupvotes']):
+    upvotes = []
+    while len(upvotes) < genconf['nitemupvotes']:
         random.seed(new_seed())
         rating = ratings[random.randint(0, len(ratings) - 1)]
         random.seed(new_seed())
         voter = users[random.randint(0, len(users) - 1)]
         upvote = ItemUpvote(rating_id=rating.id, voter_id=voter.id)
-        db.session.add(upvote)
+        if (rating.id, voter.id) not in upvotes:
+            upvotes.append((rating.id, voter.id))
+            db.session.add(upvote)
+        else:
+            continue
     db.session.commit()
 
 
@@ -208,17 +214,76 @@ def item_upvote_test():
 def item_upvote_test2():
     user = User.query.filter(User.id == 1).all()[0]
     item = Item.query.filter(Item.id == 22).all()[0]
-    query = ItemRating.query.filter(ItemRating.item_id == item.id)
-    query = query.with_entities(
-        ItemRating.rater.label("commenter"),
-        ItemRating.comment.label("comment"),
-        ItemRating.rate.label("rate"),
-        ItemRating.ts.label("timestamp"),
-        func.count(ItemRating.upvotes).label("all_counts"),
-        ItemRating.upvotes.any(voter_id=user.id).label("is_voted")
-    )
-    query = query.group_by(ItemRating.rater)
-    print(query.all())
+    # ----------------
+    # Translates the following sql:
+    # --------
+    # select
+    #     withname.id,
+    #     withname.name,
+    #     withname.item,
+    #     withname.comment,
+    #     withname.rate,
+    #     withname.ts,
+    #     count(upvote.voter_id),
+    #     exists (
+    #         select 1
+    #     from upvote
+    #         where
+    #     withname.id == upvote.rating_id
+    #     and
+    #     upvote.voter_id == ?)
+    # from upvote join (
+    #         select
+    #         rating.id as id,
+    #         user.name as name,
+    #         rating.item_id as item,
+    #         rating.comment as comment,
+    #         rating.rate as rate,
+    #         rating.ts as ts
+    #     from rating join user on rating.rater_id == user.id
+    #     where rating.item_id == ?
+    # ) as withname
+    # on upvote.rating_id == withname.id
+    # group by withname.id
+    # --------
+    # ?, ? represents (current user, current item)
+    # ----------------
+
+    subq = ItemRating.query.filter(ItemRating.item_id == item.id).\
+        join(User, User.id == ItemRating.rater_id).\
+        with_entities(
+            ItemRating.id.label("rating_id"),
+            User.name.label("name"),
+            ItemRating.item_id.label("item_id"),
+            ItemRating.comment.label("comment"),
+            ItemRating.rate.label("rate"),
+            ItemRating.ts.label("ts")
+        ).\
+        subquery()
+
+    q = ItemUpvote.query.\
+        join(subq, subq.c.rating_id == ItemUpvote.rating_id). \
+        group_by(subq.c.rating_id,
+                 subq.c.name,
+                 subq.c.item_id,
+                 subq.c.comment,
+                 subq.c.rate,
+                 subq.c.ts).\
+        with_entities(
+            subq.c.rating_id.label("rating_id"),
+            subq.c.name.label("commenter"),
+            subq.c.item_id.label("item_id"),
+            subq.c.comment.label("comment"),
+            subq.c.rate.label("rate"),
+            subq.c.ts.label("ts"),
+            func.count(ItemUpvote.voter_id).label("num_upvotes"),
+            func.max(
+                case([(ItemUpvote.voter_id == user.id, 1)], else_=0)
+            )
+        )
+
+    x = q.all()
+    print(x[0].rating_id,x[0].commenter)
 
 item_upvote_test2()
 
