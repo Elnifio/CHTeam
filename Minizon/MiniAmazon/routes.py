@@ -11,7 +11,10 @@ import json
 # ----------------
 # returns a boolean mask of length 5
 # that represents the ratings
-def to_boolean_mask(nstar):
+def to_boolean_mask(rate):
+    if rate is None:
+        return [False] * 5
+    nstar = rate.rate
     nstar = min(nstar, 5)
     nstar = max(nstar, 0)
     return [True] * nstar + [False] * (5 - nstar)
@@ -81,6 +84,7 @@ def logout_page():
 
 
 @app.route("/item_upvote", methods=['POST'])
+@login_required
 def item_upvote():
     assert request.method == "POST"
 
@@ -88,12 +92,13 @@ def item_upvote():
     assert "user" in argument and "rating" in argument, "Illegal Data provided"
 
     voter_id = argument['user']
+    assert voter_id == current_user.id, "Illegal user detected"
+
     rating_id = argument['rating']
     query = ItemUpvote.query.filter(ItemUpvote.rating_id == rating_id, ItemUpvote.voter_id == voter_id)
     is_voted = len(query.all())
 
     if is_voted != 0:
-        print(query.all())
         assert query.delete() != 0, "Number of Item Upvotes in database is inconsistent with is_voted"
         db.session.commit()
     else:
@@ -113,10 +118,50 @@ def item_upvote():
     return {'upvotes': q[0].num_upvotes, 'voted': q[0].is_voted == 1}
 
 
+@app.route("/item_review", methods=['POST'])
+@login_required
+def receive_item_review():
+    assert request.method == "POST"
+    argument = json.loads(request.data.decode("utf-8"))
+    for item in ['user', "item", 'rate', 'comment']:
+        assert item in argument, item + " not in argument: " + str(argument)
+
+    assert argument['user'] == current_user.id, "Provided user is not current user"
+    q = ItemRating.query.filter(ItemRating.item_id == argument['item'], ItemRating.rater_id == argument['user']).all()
+    if len(q) == 0:
+        new_rate = ItemRating(item_id=argument['item'], rater_id=argument['user'],
+                              comment=argument['comment'], rate=argument['rate'])
+        db.session.add(new_rate)
+        db.session.commit()
+        return {"comment": new_rate.comment}
+    else:
+        roi = q[0]
+        roi.comment = argument['comment']
+        roi.rate = argument['rate']
+        db.session.commit()
+        return {'comment': roi.comment}
+
+
+@app.route("/delete_item_review", methods=["POST"])
+@login_required
+def delete_review():
+    assert request.method == "POST"
+    argument = json.loads(request.data.decode("utf-8"))
+    for item in ['user', "item"]:
+        assert item in argument, item + " not in argument: " + str(argument)
+
+    assert argument['user'] == current_user.id, "Provided user is not current user"
+    q = ItemRating.query.filter(ItemRating.item_id == argument['item'], ItemRating.rater_id == argument['user']).delete()
+    assert q != 0, "0 rating deleted"
+    db.session.commit();
+    return {"success": True}
+
+
 @app.route('/item_info/<int:id>')
 @login_required
 def item_info_page(id):
     item = Item.query.get_or_404(id)
+    print(item)
 
     # cursor.execute("select avg(rate) from ItemRating where item_id == ?", (id))
     average = ItemRating.query.\
@@ -203,19 +248,20 @@ def item_info_page(id):
         group_by(ItemRating.rate).all()
 
     actuals = {x: 0 for x in range(6)}
-    for item in distribution:
-        actuals[item[0]] = item[1]
+    for dist in distribution:
+        actuals[dist[0]] = dist[1]
 
-    # cursor.execute("select
-    #                   from ItemRating
-    #                       inner join ItemUpvote on ItemRating.id == ItemUpvote.rating_id", ())
+    current_review = ItemRating.query.filter(ItemRating.item_id == id, ItemRating.rater_id == current_user.id).all()
 
     return render_template('item_info.html', item=item,
                            reviews=ratings,
                            average=round(average, 1) if average is not None else average,
                            distribution=actuals, num_reviews=len(ratings),
                            boolean_mask=to_boolean_mask,
-                           current=current_user)
+                           current=current_user,
+                           user_review=current_review[0] if len(current_review) > 0 else None,
+                           has_user_review=len(current_review) > 0,
+                           reviewable=True)
 
 
 @app.errorhandler(404)

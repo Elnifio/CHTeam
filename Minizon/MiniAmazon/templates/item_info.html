@@ -78,25 +78,182 @@
             {% endif %}
         </div>
 
+        {# Action listener for clicking the upvote button #}
         <script>
             function clickUpvote(rating_id, current_user) {
-                console.log(`User ${current_user} clicked on ${rating_id}`);
                 axios.post("/item_upvote", {
                     user: current_user,
                     rating: rating_id
                 }).then(function (response) {
                     let result = response.data;
-                    document.getElementById(`review-num-upvotes-${rating_id}`).innerText = result.upvotes
-                    document.getElementById(`review-icon-${rating_id}`).className = result.voted ? "fa fa-thumbs-up" : "fa fa-thumbs-o-up"
+                    document.getElementById(`review-num-upvotes-${rating_id}`).innerText = result.upvotes;
+                    document.getElementById(`review-icon-${rating_id}`).className = result.voted ? "text-danger fa fa-thumbs-up" : "text-danger fa fa-thumbs-o-up";
                 }).catch(function (error) {
                     console.log(error);
                 })
             }
         </script>
 
+        <script>
+            function updateRating(rating) {
+                [1,2,3,4,5].forEach(x =>
+                    document.getElementById(`user-rating-${x}`).className = x <= rating ? "fa fa-star" : "fa fa-star-o"
+                )
+            }
+        </script>
+
+        <script>
+            function submitReview(current_user, current_item) {
+                let currcomment = document.getElementById("user-review-editor").value.trim();
+                if (currcomment == "") {
+                    alert("Comments cannot be empty.");
+                    return;
+                }
+                axios.post("/item_review", {
+                    user: current_user,
+                    item: current_item,
+                    rate: [1,2,3,4,5].reduce(
+                        (accumulator, current) =>
+                            Math.max(accumulator,
+                                document.getElementById(`user-rating-${current}`).className == "fa fa-star" ? current : 0)
+                        , 0),
+                    comment: currcomment
+                }).then(function (response) {
+                    let result = response.data;
+                    let editorDisplay = document.getElementById("user-review-editor-display")
+                    editorDisplay.innerText = result.comment;
+                    editorDisplay.style.display = "block";
+                    document.getElementById("user-review-edit-icon").style.display = "block";
+                    document.getElementById("user-review-editor-form").style.display = "none";
+                    document.getElementById("user-review-publish-icon").style.display = "none";
+                    document.getElementById("user-review-title").innerText = "Your Review";
+                    document.getElementById("user-review-delete-icon").style.display = "block";
+                    document.getElementById("user-review-clear-icon").style.display = "none";
+                }).catch(function (error) {
+                    console.log(error);
+                })
+            }
+
+            function displayEdit() {
+                document.getElementById("user-review-title").innerText = "Edit Review"
+                document.getElementById("user-review-editor-display").style.display = "none";
+                document.getElementById("user-review-edit-icon").style.display = "none";
+                document.getElementById("user-review-delete-icon").style.display = "none";
+                document.getElementById("user-review-editor-form").style.display = "block";
+                document.getElementById("user-review-publish-icon").style.display = "block";
+                document.getElementById("user-review-clear-icon").style.display = "block";
+            }
+
+            function clearForm() {
+                document.getElementById("user-review-editor").value = "";
+                updateRating(0);
+            }
+
+            function deleteReview(userID, itemID) {
+                let result = window.confirm("Are you sure you want to delete this review?");
+                if (result) {
+                    axios.post("/delete_item_review", {
+                        user: userID,
+                        item: itemID
+                    }).then(function (response) {
+                        clearForm();
+                        displayEdit();
+                    }).catch(function (error) {
+                        console.log(error);
+                    })
+                }
+            }
+        </script>
+
         {# Shows each comment's content #}
         <ul class="list-group list-group-flush">
-            {% for review in reviews %}
+
+            {# Component for user to write a new review #}
+            {# Component style should be congruent to review display style #}
+            <li class="list-group-item" style="display:{{ "block" if reviewable else "none" }}">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title" id="user-review-title">
+                            {{ "Edit Review" if not user_review else "Your Review"}}
+                        </h5>
+                        <h6 class="card-subtitle mb-2 text-muted">
+                            {# Score #}
+                            {% for star_prop in boolean_mask(user_review) %}
+                                {% if star_prop %}
+                                    <i class="fa fa-star" id="user-rating-{{ loop.index }}" onclick="updateRating({{ loop.index }})"></i>
+                                {% else %}
+                                    <i class="fa fa-star-o" id="user-rating-{{ loop.index }}" onclick="updateRating({{ loop.index }})"></i>
+                                {% endif %}
+                            {% endfor %}
+                        </h6>
+
+                        <div class="card-text">
+                            <form style="display:{{ "none" if user_review else "block" }}" id="user-review-editor-form">
+                                <div class="form-group">
+                                    <textarea
+                                            class="form-control"
+                                            id="user-review-editor"
+                                            rows="3"
+                                            placeholder="let others know more about this item">
+                                        {{ user_review.comment }}
+                                    </textarea>
+                                </div>
+                            </form>
+
+                            <p style="display:{{ "block" if user_review else "none" }}"
+                               id="user-review-editor-display">
+                                {{ user_review.comment }}
+                            </p>
+                        </div>
+
+                        {# rate timestamp #}
+                        {# A button for clicking upvotes #}
+                        <div class="d-flex">
+                            <div class="flex-grow-1">
+                                <i class="text-danger fa fa-thumbs-o-up"></i>
+                                <span class="text-danger">
+                                    {{ user_review.num_upvotes if user_review else 0 }}
+                                </span>
+                            </div>
+
+                            <div onclick="deleteReview({{ current.id }}, {{ item.id }})"
+                                 style="display:{{ "block" if user_review else "none" }}"
+                                 id="user-review-delete-icon"
+                                 class="px-2">
+                                <i class="text-danger fa fa-trash-o"></i>
+                                <span class="text-danger">Delete</span>
+                            </div>
+
+                            <div onclick="displayEdit()"
+                                 style="display:{{ "block" if user_review else "none" }}"
+                                 id="user-review-edit-icon"
+                                 class="px-2">
+                                <i class="text-info fa fa-pencil"></i>
+                                <span class="text-info">Edit</span>
+                            </div>
+
+                            <div onclick="clearForm()"
+                                 style="display:{{ "none" if user_review else "block" }}"
+                                 id="user-review-clear-icon"
+                                 class="px-2">
+                                <i class="text-danger fa fa-trash-o"></i>
+                                <span class="text-danger">Clear</span>
+                            </div>
+
+                            <div onclick="submitReview({{ current.id }}, {{ item.id }})"
+                                 style="display:{{ "none" if user_review else "block" }}"
+                                 id="user-review-publish-icon"
+                                 class="px-2">
+                                <i class="text-info fa fa-paper-plane-o"></i>
+                                <span class="text-info">Publish</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </li>
+
+            {# Shows other users' review #}
+            {% for review in reviews if (has_user_review and review.rating_id != user_review.rating_id) or (not has_user_review) %}
                 <li class="list-group-item">
                     <div class="card">
                         <div class="card-body">
@@ -106,7 +263,7 @@
                             </h5>
                             <h6 class="card-subtitle mb-2 text-muted">
                                 {# Score #}
-                                {% for star_prop in boolean_mask(review.rate) %}
+                                {% for star_prop in boolean_mask(review) %}
                                     {% if star_prop %}
                                         <i class="fa fa-star"></i>
                                     {% else %}
@@ -118,17 +275,20 @@
                                 {# comment content #}
                                 {{ review.comment }}
                             </p>
-                            <div class="d-flex">
-                                <button type="button" class="btn btn-outline-danger" onclick="clickUpvote({{ review.rating_id }}, {{ current.id }})">
-                                    <i
-                                        class="{{ "fa fa-thumbs-o-up" if not review.is_voted else "fa fa-thumbs-up" }}"
-                                        id="review-icon-{{ review.rating_id }}"></i>
-                                    <span id="review-num-upvotes-{{ review.rating_id }}">{{ review.num_upvotes }}</span>
-                                </button>
-                                <span>{{ review.ts }}</span>
-                            </div>
+
                             {# rate timestamp #}
                             {# A button for clicking upvotes #}
+                            <div class="d-flex">
+                                <div class="flex-grow-1" onclick="clickUpvote({{ review.rating_id }}, {{ current.id }})">
+                                    <i
+                                        class="{{ "text-danger fa fa-thumbs-o-up" if not review.is_voted else "text-danger fa fa-thumbs-up" }}"
+                                        id="review-icon-{{ review.rating_id }}"></i>
+                                    <span id="review-num-upvotes-{{ review.rating_id }}" class="text-danger">{{ review.num_upvotes }}</span>
+                                </div>
+                                <div>
+                                    <span class="text-secondary">Written on {{ review.ts }}</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </li>
