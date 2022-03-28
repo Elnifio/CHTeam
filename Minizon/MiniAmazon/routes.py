@@ -433,3 +433,10 @@ def cart_page():
 def page_not_found(e):
     # note that we set the 404 status explicitly
     return render_template('404.html'), 404
+
+@app.route('/public_profile/<int:id>')
+@login_required
+def public_profile__page(id):
+    user = User.query.get_or_404(id)
+    return render_template('public_profile.html', user=user)
+
