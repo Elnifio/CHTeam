@@ -86,12 +86,19 @@ def logout_page():
 @app.route("/item_upvote", methods=['POST'])
 @login_required
 def item_upvote():
+    if not request.method == "POST":
+        flash(f'Error: Invalid Request Method {request.method}', category='danger')
+
     assert request.method == "POST"
 
     argument = json.loads(request.data.decode("utf-8"))
+    if not "user" in argument and "rating" in argument:
+        flash(f'Error: Invalid request data format', category='danger')
     assert "user" in argument and "rating" in argument, "Illegal Data provided"
 
     voter_id = argument['user']
+    if not voter_id ==  current_user.id:
+        flash(f"Error: Invalid voter", category="danger")
     assert voter_id == current_user.id, "Illegal user detected"
 
     rating_id = argument['rating']
@@ -99,7 +106,10 @@ def item_upvote():
     is_voted = len(query.all())
 
     if is_voted != 0:
-        assert query.delete() != 0, "Number of Item Upvotes in database is inconsistent with is_voted"
+        result = query.delete()
+        if result != 0:
+            flash("Error: Number of Item Upvotes in database is inconsistent with is_voted")
+        assert result != 0, "Number of Item Upvotes in database is inconsistent with is_voted"
         db.session.commit()
     else:
         upvote = ItemUpvote(rating_id=rating_id, voter_id=voter_id)
@@ -114,6 +124,9 @@ def item_upvote():
                 case([(ItemUpvote.voter_id == current_user.id, 1)], else_=0)
             ).label("is_voted")
         ).all()
+
+    if not len(q) == 1:
+        flash("Error: Item Upvote aggregation returned multiple instances")
     assert len(q) == 1, "Item Upvote aggregation returned multiple instances"
     return {'upvotes': q[0].num_upvotes, 'voted': q[0].is_voted == 1}
 
@@ -121,13 +134,22 @@ def item_upvote():
 @app.route("/item_review", methods=['POST'])
 @login_required
 def receive_item_review():
+    if not request.method == "POST":
+        flash(f'Error: Invalid Request Method {request.method}', category='danger')
     assert request.method == "POST"
+
     argument = json.loads(request.data.decode("utf-8"))
     for item in ['user', "item", 'rate', 'comment']:
+        if item not in argument:
+            flash('Error: Invalid request data format', category='danger')
         assert item in argument, item + " not in argument: " + str(argument)
 
+    if not argument['user'] == current_user.id:
+        flash(f"Error: Invalid rater", category="danger")
     assert argument['user'] == current_user.id, "Provided user is not current user"
+
     q = ItemRating.query.filter(ItemRating.item_id == argument['item'], ItemRating.rater_id == argument['user']).all()
+
     if len(q) == 0:
         new_rate = ItemRating(item_id=argument['item'], rater_id=argument['user'],
                               comment=argument['comment'], rate=argument['rate'])
@@ -145,14 +167,25 @@ def receive_item_review():
 @app.route("/delete_item_review", methods=["POST"])
 @login_required
 def delete_review():
+    if not request.method == "POST":
+        flash(f'Error: Invalid Request Method {request.method}', category='danger')
     assert request.method == "POST"
+
     argument = json.loads(request.data.decode("utf-8"))
     for item in ['user', "item"]:
+        if item not in argument:
+            flash('Error: Invalid request data format', category='danger')
         assert item in argument, item + " not in argument: " + str(argument)
 
+    if not argument['user'] == current_user.id:
+        flash(f"Error: Invalid rater", category="danger")
     assert argument['user'] == current_user.id, "Provided user is not current user"
+
     q = ItemRating.query.filter(ItemRating.item_id == argument['item'], ItemRating.rater_id == argument['user']).delete()
+    if q == 0:
+        flash(f"Error: 0 Rating deleted")
     assert q != 0, "0 rating deleted"
+
     db.session.commit();
     return {"success": True}
 
@@ -161,7 +194,6 @@ def delete_review():
 @login_required
 def item_info_page(id):
     item = Item.query.get_or_404(id)
-    print(item)
 
     # cursor.execute("select avg(rate) from ItemRating where item_id == ?", (id))
     average = ItemRating.query.\
