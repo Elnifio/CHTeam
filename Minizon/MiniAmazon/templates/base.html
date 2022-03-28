@@ -47,7 +47,10 @@
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" style="color: black">Welcome, {{ current_user.name }}</a>
+                    <i class="nav-link" style="color: black">Welcome, {{ current_user.name }}</i>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('cart_page') }} ">Cart</a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('logout_page') }}">Logout</a>
