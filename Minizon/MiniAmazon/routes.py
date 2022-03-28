@@ -204,39 +204,23 @@ def item_info_page(id):
     # --------
     # ?, ? represents (current user, current item)
     # ----------------
-    subq = ItemRating.query.filter(ItemRating.item_id == item.id). \
-        join(User, User.id == ItemRating.rater_id). \
-        with_entities(
-            ItemRating.id.label("rating_id"),
-            User.name.label("name"),
-            ItemRating.item_id.label("item_id"),
-            ItemRating.comment.label("comment"),
-            ItemRating.rate.label("rate"),
-            ItemRating.ts.label("ts")
-        ).\
-        subquery()
 
-    q = ItemUpvote.query.\
-        join(subq, subq.c.rating_id == ItemUpvote.rating_id). \
-        group_by(
-            subq.c.rating_id,
-            subq.c.name,
-            subq.c.item_id,
-            subq.c.comment,
-            subq.c.rate,
-            subq.c.ts). \
+    q = ItemRating.query.filter(ItemRating.item_id == item.id). \
+        join(User, User.id == ItemRating.rater_id). \
+        outerjoin(ItemUpvote, ItemRating.id == ItemUpvote.rating_id). \
+        group_by(ItemRating.id, User.name, ItemRating.item_id, ItemRating.comment, ItemRating.rate, ItemRating.ts). \
         with_entities(
-            subq.c.rating_id.label("rating_id"),
-            subq.c.name.label("commenter"),
-            subq.c.item_id.label("item_id"),
-            subq.c.comment.label("comment"),
-            subq.c.rate.label("rate"),
-            subq.c.ts.label("ts"),
-            func.count(ItemUpvote.voter_id).label("num_upvotes"),
-            func.max(
-                case([(ItemUpvote.voter_id == current_user.id, 1)], else_=0)
-            ).label("is_voted")
+        ItemRating.id.label("rating_id"),
+        User.name.label("name"),
+        ItemRating.item_id.label("item_id"),
+        ItemRating.comment.label("comment"),
+        ItemRating.rate.label("rate"),
+        ItemRating.ts.label("ts"),
+        func.count(ItemUpvote.voter_id).label("num_upvotes"),
+        func.max(
+            case([(ItemUpvote.voter_id == current_user.id, 1)], else_=0)
         )
+    )
     ratings = q.all()
 
     # cursor.execute("select rate, count(rater_id) as cnt
@@ -252,6 +236,7 @@ def item_info_page(id):
         actuals[dist[0]] = dist[1]
 
     current_review = ItemRating.query.filter(ItemRating.item_id == id, ItemRating.rater_id == current_user.id).all()
+    print(ItemRating.query.filter(ItemRating.item_id == id).all())
 
     return render_template('item_info.html', item=item,
                            reviews=ratings,

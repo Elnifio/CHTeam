@@ -28,7 +28,7 @@ def new_seed():
 # ----------------
 # CONFIGS
 # ----------------
-jump = False            # Controls if we skips the data generation part
+jump = True            # Controls if we skips the data generation part
 
 # --------
 # DATA GENERATION SPECIFIC CONFIG
@@ -251,39 +251,45 @@ def item_upvote_test2():
 
     subq = ItemRating.query.filter(ItemRating.item_id == item.id).\
         join(User, User.id == ItemRating.rater_id).\
+        outerjoin(ItemUpvote, ItemRating.id == ItemUpvote.rating_id).\
+        group_by(ItemRating.id, User.name, ItemRating.item_id, ItemRating.comment, ItemRating.rate, ItemRating.ts).\
         with_entities(
             ItemRating.id.label("rating_id"),
             User.name.label("name"),
             ItemRating.item_id.label("item_id"),
             ItemRating.comment.label("comment"),
             ItemRating.rate.label("rate"),
-            ItemRating.ts.label("ts")
-        ).\
-        subquery()
-
-    q = ItemUpvote.query.\
-        join(subq, subq.c.rating_id == ItemUpvote.rating_id). \
-        group_by(subq.c.rating_id,
-                 subq.c.name,
-                 subq.c.item_id,
-                 subq.c.comment,
-                 subq.c.rate,
-                 subq.c.ts).\
-        with_entities(
-            subq.c.rating_id.label("rating_id"),
-            subq.c.name.label("commenter"),
-            subq.c.item_id.label("item_id"),
-            subq.c.comment.label("comment"),
-            subq.c.rate.label("rate"),
-            subq.c.ts.label("ts"),
+            ItemRating.ts.label("ts"),
             func.count(ItemUpvote.voter_id).label("num_upvotes"),
             func.max(
                 case([(ItemUpvote.voter_id == user.id, 1)], else_=0)
             )
         )
 
-    x = q.all()
-    print(x[0].rating_id,x[0].commenter)
+    # q = subq.\
+    #     join(ItemUpvote, subq.c.rating_id == ItemUpvote.rating_id). \
+    #     group_by(subq.c.rating_id,
+    #              subq.c.name,
+    #              subq.c.item_id,
+    #              subq.c.comment,
+    #              subq.c.rate,
+    #              subq.c.ts).\
+    #     with_entities(
+    #         subq.c.rating_id.label("rating_id"),
+    #         subq.c.name.label("commenter"),
+    #         subq.c.item_id.label("item_id"),
+    #         subq.c.comment.label("comment"),
+    #         subq.c.rate.label("rate"),
+    #         subq.c.ts.label("ts"),
+    #         func.count(ItemUpvote.voter_id).label("num_upvotes"),
+    #         func.max(
+    #             case([(ItemUpvote.voter_id == user.id, 1)], else_=0)
+    #         )
+    #     )
+
+    print("----------------")
+    print(subq.all())
+    print("----------------")
 
 item_upvote_test2()
 
