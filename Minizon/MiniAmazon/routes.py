@@ -1,6 +1,6 @@
 from MiniAmazon import app, db, ALLOWED_EXTENSIONS
 from flask import render_template, redirect, url_for, flash, request
-from MiniAmazon.models import Item, User, Category, ItemImage, Inventory, ItemRating, ItemUpvote
+from MiniAmazon.models import Item, User, Category, ItemImage, Inventory, ItemRating, ItemUpvote, Conversation
 from MiniAmazon.forms import RegisterForm, LoginForm, ItemForm, MarketForm, SellForm
 from flask_login import login_user, login_required, logout_user, current_user
 from werkzeug.utils import secure_filename
@@ -133,12 +133,12 @@ def item_upvote():
     assert request.method == "POST"
 
     argument = json.loads(request.data.decode("utf-8"))
-    if not "user" in argument and "rating" in argument:
+    if not ("user" in argument and "rating" in argument):
         flash(f'Error: Invalid request data format', category='danger')
     assert "user" in argument and "rating" in argument, "Illegal Data provided"
 
     voter_id = argument['user']
-    if not voter_id ==  current_user.id:
+    if not voter_id == current_user.id:
         flash(f"Error: Invalid voter", category="danger")
     assert voter_id == current_user.id, "Illegal user detected"
 
@@ -222,13 +222,25 @@ def delete_review():
         flash(f"Error: Invalid rater", category="danger")
     assert argument['user'] == current_user.id, "Provided user is not current user"
 
-    q = ItemRating.query.filter(ItemRating.item_id == argument['item'], ItemRating.rater_id == argument['user']).delete()
+    q = ItemRating.query.\
+        filter(ItemRating.item_id == argument['item'], ItemRating.rater_id == argument['user']).\
+        delete()
     if q == 0:
         flash(f"Error: 0 Rating deleted")
     assert q != 0, "0 rating deleted"
 
-    db.session.commit();
+    db.session.commit()
     return {"success": True}
+
+
+@app.route("/conversation")
+@login_required
+def all_conversations():
+    # TODO: Given a current logged-in user_id, return a list of all conversations
+    q = Conversation.query.\
+        filter((Conversation.sender_id == current_user.id) | (Conversation.receiver_id == current_user.id))
+    raise "Unimplemented URL"
+    pass
 
 
 @app.route('/item_info/<int:id>')

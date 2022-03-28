@@ -4,7 +4,8 @@
 from MiniAmazon import db
 from MiniAmazon.models import *
 from sqlalchemy import func, case
-from sqlalchemy.sql import text
+from itertools import combinations
+from datetime import datetime, timedelta
 
 # ----------------
 # RANDOM GENERATOR
@@ -28,7 +29,7 @@ def new_seed():
 # ----------------
 # CONFIGS
 # ----------------
-jump = True            # Controls if we skips the data generation part
+jump = False            # Controls if we skips the data generation part
 
 # --------
 # DATA GENERATION SPECIFIC CONFIG
@@ -39,6 +40,8 @@ genconf = {
     'nitems': 30,               # Controls number of items generated
     'nitemratings': 20,         # Controls number of item ratings generated
     'nitemupvotes': 20,         # Controls number of item upvotes generated
+    "nconversations": 20,       # Controls number of conversations generated
+    "maxconversationlength": 20,# Controls maximum length of the conversation
     'indent': -1
 }
 
@@ -144,20 +147,67 @@ def create_item_upvotes():
     db.session.commit()
 
 
+@data_log()
+def create_conversation():
+    users = User.query.all()
+    pairs = combinations(users, 2)
+    idx = 0
+    now = datetime.now()
+    year = now.year
+    month = now.month - 1
+    for pair in pairs:
+        if idx >= genconf['nconversations']:
+            break
+        random.seed(new_seed())
+        lenconversation = random.randint(1, genconf['maxconversationlength'])
+        random.seed(new_seed())
+        day = random.randint(1, 28)
+        random.seed(new_seed())
+        hour = random.randint(0, 23)
+        random.seed(new_seed())
+        minute = random.randint(0, 59)
+        random.seed(new_seed())
+        second = random.randint(0, 59)
+        basetime = datetime(year=year, month=month, day=day, hour=hour, minute=minute, second=second)
+        for _ in range(lenconversation):
+            random.seed(new_seed())
+            sender = random.randint(0, 1)
+            receiver = (sender + 1) % 2
+            sender = pair[sender]
+            receiver = pair[receiver]
+            msg = Conversation(
+                sender_id=sender.id,
+                receiver_id=receiver.id,
+                content=f"Test Message from {sender.name} to {receiver.name}",
+                ts=basetime
+            )
+            db.session.add(msg)
+
+            random.seed(new_seed())
+            second = random.randint(1, 24*60*60-1)
+            random.seed(new_seed())
+            day = random.randint(0,2)
+            basetime = basetime + timedelta(days=day, seconds=second)
+        db.session.commit()
+        idx += 1
+
+
+
 # ----------------
 # DATA GENERATION
 # ----------------
 @data_log()
 def generate_data():
-    # Re-creates the table
-    drop_table()
-    create_table()
-    # Create data entries
-    create_user()
-    create_categories()
-    create_items()
-    create_item_ratings()
-    create_item_upvotes()
+    # # Re-creates the table
+    # drop_table()
+    # create_table()
+    # # Create data entries
+    # create_user()
+    # create_categories()
+    # create_items()
+    # create_item_ratings()
+    # create_item_upvotes()
+    create_conversation()
     return
 
 
