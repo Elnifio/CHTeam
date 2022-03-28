@@ -1,27 +1,69 @@
 from MiniAmazon import db, login_manager, bcrypt
 from datetime import datetime
 from flask_login import UserMixin
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy import select
 # user log in doc: https://flask-login.readthedocs.io/en/latest/#how-it-works
 
-inventory = db.Table('inventory',
-    db.Column('seller_id', db.Integer, db.ForeignKey('user.id'), nullable=False, primary_key=True),
-    db.Column('item_id', db.Integer, db.ForeignKey('item.id'), nullable=False, primary_key=True),
-    db.Column('quantity', db.Integer, nullable=False),
-    db.Column('price', db.Float, nullable=False)
-)
+
+class Inventory(db.Model):
+    seller_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
+    item_id = db.Column(db.Integer, db.ForeignKey('item.id'), primary_key=True)
+    quantity = db.Column(db.Integer, nullable=False)
+    price = db.Column(db.Float, nullable=False)
+
+    seller = db.relationship('User', backref='item_inventory')
+    item = db.relationship('Item', backref=db.backref('user_inventory', lazy='dynamic'))
 
 
 class Item(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(length=30), nullable=False)
-    image = db.Column(db.String(100))
     description = db.Column(db.Text, nullable=False)
-    avg_price = db.Column(db.Float, default=0.0)
 
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=False)
     creator_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
-    rates = db.relationship("ItemRating", backref='item', lazy=True)
+    rates = db.relationship("ItemRating", backref='item', lazy='dynamic')
+    images = db.relationship('ItemImage', lazy=True)
+
+    @hybrid_property
+    def price(self):
+        total_price = self.user_inventory.with_entities(db.func.sum(Inventory.price)).first()[0]
+        return round(total_price/self.user_inventory.count(), 2)
+
+    @price.expression
+    def price(cls):
+        return(
+            select([db.func.sum(Inventory.price)]).
+            where(cls.id == Inventory.item_id).
+            label('price')
+        )
+
+    @hybrid_property
+    def rating(self):
+        count = self.rates.count()
+        total_rating = self.rates.with_entities(db.func.sum(ItemRating.rate)).first()[0]
+        print(self.id, " ", total_rating)
+        return round(total_rating/self.rates.count(), 1) if count > 0 else 0.0
+
+    @rating.expression
+    def rating(cls):
+        return(
+            select([db.func.coalesce(db.func.sum(ItemRating.rate), 0)]).
+            where(cls.id == ItemRating.item_id).
+            label('rating')
+        )
+
+    def __repr__(self):
+        return f'<Item {self.name}>'
+
+
+class ItemImage(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(), nullable=True)
+
+    item_id = db.Column(db.Integer, db.ForeignKey('item.id'))
 
     def __repr__(self):
         return f'<Item {self.name}>'
@@ -37,11 +79,15 @@ class Category(db.Model):
         return f'<Category {self.name}>'
 
 
-cart = db.Table('cart',
-                db.Column('item_id', db.Integer, db.ForeignKey('item.id'), primary_key=True),
-                db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
-                db.Column('quantity', db.Integer, nullable=False)
-)
+class Cart(db.Model):
+    item_id = db.Column(db.Integer, db.ForeignKey('item.id'), primary_key=True)
+    seller_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
+    quantity = db.Column(db.Integer, nullable=False)
+    price = db.Column(db.Float, nullable=False)
+    ts = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    seller = db.relationship('User', backref='item_cart')
+    item = db.relationship('Item', backref='user_cart')
 
 
 @login_manager.user_loader
@@ -59,7 +105,7 @@ class User(db.Model, UserMixin):
 
     # add relationships below
     items_create = db.relationship('Item', backref='creator', lazy='dynamic')
-    items_cart = db.relationship('Item', secondary='cart', lazy='select')
+    items_cart = db.relationship('Item', secondary='cart', lazy=True)
 
     receivers = db.relationship('Conversation', backref='sender',
                                 lazy=True, foreign_keys="Conversation.sender_id")
@@ -75,8 +121,8 @@ class User(db.Model, UserMixin):
                                      lazy=True, foreign_keys="SellerRating.seller_id")
     seller_votes = db.relationship("SellerUpvote", backref="voter", lazy=True)
 
-    seller_inventory = db.relationship('Item', secondary=inventory,
-                                       lazy=True, backref=db.backref('sellers', lazy=True))
+    seller_inventory = db.relationship('Item', secondary='inventory',
+                                       lazy=True, backref=db.backref('sellers', lazy='dynamic'), viewonly=True)
     sell_order = db.relationship('Order', backref='seller', lazy=True, foreign_keys='Order.seller_id')
 
     @property
@@ -172,7 +218,7 @@ class Order(db.Model):
     def __repr__(self):
         return f'<Order {self.id}>'
 
-
+# TODO: to association
 order_items = db.Table(
     'order_items',
     db.Column('order_id', db.Integer, db.ForeignKey('order.id'), primary_key=True),
@@ -181,18 +227,4 @@ order_items = db.Table(
     db.Column('price', db.Float, nullable=False)
 )
 
-
-    # id = db.Column(db.Integer, primary_key=True)
-    # item_name = db.Column(db.String(length=30), nullable=False)
-    # price = db.Column(db.Float, nullable=False)
-    # number_of_item = db.Column(db.Integer, nullable=False)
-    #
-    #
-    # order_id = db.Column(db.Integer, db.ForeignKey('order.id'), nullable=False)
-    # item_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    #
-    # items = db.relationship('Item', lazy=True)
-    #
-    # def __repr__(self):
-    #     return f'<Order_Detail {self.id}>'
 

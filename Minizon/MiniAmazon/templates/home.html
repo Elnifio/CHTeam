@@ -5,5 +5,10 @@
 {% endblock %}
 
 {% block content %}
-    This is content for Home Page
+    <div class="container">
+        <a class="btn btn-outline btn-info mt-2 mb-2" href="{{ url_for('inventory_page') }}">More Info</a>
+        <a class="btn btn-outline btn-success mt-2 mb-2" href="{{ url_for('sell_history_page') }}">Sell</a>
+        <a class="btn btn-outline btn-success mt-2 mb-2" href="{{ url_for('buy_history_page') }}">Buy</a>
+
+    </div>
 {% endblock %}
