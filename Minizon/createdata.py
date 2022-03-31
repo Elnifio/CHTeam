@@ -6,6 +6,7 @@ from MiniAmazon.models import *
 from sqlalchemy import func, case
 from itertools import combinations
 from datetime import datetime, timedelta
+from sqlalchemy.orm import aliased
 
 # ----------------
 # RANDOM GENERATOR
@@ -29,7 +30,7 @@ def new_seed():
 # ----------------
 # CONFIGS
 # ----------------
-jump = False            # Controls if we skips the data generation part
+jump = True            # Controls if we skips the data generation part
 
 # --------
 # DATA GENERATION SPECIFIC CONFIG
@@ -149,17 +150,27 @@ def create_item_upvotes():
 
 @data_log()
 def create_conversation():
+    # Finds all users
     users = User.query.all()
     pairs = combinations(users, 2)
     idx = 0
+
+    # Finds current time
     now = datetime.now()
     year = now.year
     month = now.month - 1
+
+    # Creates pairs with number == genconf['nconversations']
     for pair in pairs:
+        # Stops when pairs >= genconf['nconversations']
         if idx >= genconf['nconversations']:
             break
+
+        # Generates the length of the conversation
         random.seed(new_seed())
         lenconversation = random.randint(1, genconf['maxconversationlength'])
+
+        # Generates the base time to increment
         random.seed(new_seed())
         day = random.randint(1, 28)
         random.seed(new_seed())
@@ -169,6 +180,7 @@ def create_conversation():
         random.seed(new_seed())
         second = random.randint(0, 59)
         basetime = datetime(year=year, month=month, day=day, hour=hour, minute=minute, second=second)
+
         for _ in range(lenconversation):
             random.seed(new_seed())
             sender = random.randint(0, 1)
@@ -188,6 +200,7 @@ def create_conversation():
             random.seed(new_seed())
             day = random.randint(0,2)
             basetime = basetime + timedelta(days=day, seconds=second)
+
         db.session.commit()
         idx += 1
 
@@ -200,7 +213,7 @@ def create_conversation():
 def generate_data():
     # # Re-creates the table
     # drop_table()
-    # create_table()
+    create_table()
     # # Create data entries
     # create_user()
     # create_categories()
@@ -341,7 +354,89 @@ def item_upvote_test2():
     print(subq.all())
     print("----------------")
 
-item_upvote_test2()
+
+def conversations():
+    uoi = User.query.filter(User.id == 17).all()[0]
+    # q = Conversation.query.filter((Conversation.sender_id == uoi.id) | (Conversation.receiver_id == uoi.id))
+    # q = q.order_by(Conversation.ts).with_entities(
+    #     Conversation.sender.name.label("sender"),
+    #     Conversation.receiver.name.label("receiver"),
+    #     Conversation.content.label("content"),
+    #     Conversation.ts.label("ts")
+    # )
+
+    senders = aliased(User)
+    receivers = aliased(User)
+    q = Conversation.query.filter((Conversation.sender_id == uoi.id) | (Conversation.receiver_id == uoi.id))
+    q = q.join(senders, senders.id == Conversation.sender_id).\
+        join(receivers, receivers.id == Conversation.receiver_id)
+    q = q.with_entities(
+        senders.name.label("Sender"),
+        senders.id.label("Sender_id"),
+        receivers.name.label("Receiver"),
+        receivers.id.label("Receiver_id"),
+        Conversation.content.label("Content"),
+        Conversation.ts.label("Timestamp")
+    ).order_by(Conversation.ts)
+
+    print([x.Timestamp for x in q.all()])
 
 
+# conversations()
+
+
+def contacts():
+    print("--------\n\n\n--------")
+    uoi = User.query.filter(User.id == 1).all()[0]
+
+    roi = Conversation.query.filter((Conversation.sender_id == uoi.id) | (Conversation.receiver_id == uoi.id))
+
+    roi = roi.with_entities(
+        case([(Conversation.sender_id == uoi.id, Conversation.receiver_id), ], else_=Conversation.sender_id).label("Other_id"),
+        func.max(Conversation.ts).label("Ts"),
+    ).group_by(case([(Conversation.sender_id == uoi.id, Conversation.receiver_id), ], else_=Conversation.sender_id))
+    print("--------\n\nROI:\n\n--------")
+    print(roi.all())
+
+    roi = roi.subquery()
+
+    senders = Conversation.query.\
+        join(roi, (roi.c.Other_id == Conversation.sender_id) & (roi.c.Ts == Conversation.ts)).\
+        filter(Conversation.receiver_id == uoi.id).\
+        join(User, User.id == roi.c.Other_id).\
+        with_entities(
+            Conversation.ts.label("Timestamp"),
+            Conversation.content.label("Content"),
+            User.name.label("Other")
+        )
+
+    print("--------\n\nSenders:\n\n--------")
+    print(senders.all())
+
+    receivers = Conversation.query.\
+        join(roi, (roi.c.Other_id == Conversation.receiver_id) & (roi.c.Ts == Conversation.ts)).\
+        filter(Conversation.sender_id == uoi.id).\
+        join(User, User.id == roi.c.Other_id). \
+        with_entities(
+            Conversation.ts.label("Timestamp"),
+            Conversation.content.label("Content"),
+            User.name.label("Other")
+        )
+    print("--------\n\nReceivers:\n\n--------")
+    print(receivers.all())
+
+    print("--------\n\n\n--------")
+    for item in senders.union(receivers).all():
+        print(f"Sent to {item.Other}: {item.Content} at {item.Timestamp}")
+
+    print("--------\n\n\n--------")
+    for item in map(
+            lambda x: {"Other": x.Other, "Content": x.Content, "Timestamp": x.Timestamp},
+            senders.union(receivers).order_by(Conversation.ts).all()):
+        print(item)
+
+    return
+
+
+contacts()
 

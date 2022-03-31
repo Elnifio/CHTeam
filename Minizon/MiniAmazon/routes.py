@@ -9,6 +9,7 @@ import json
 import uuid as uuid
 import os
 
+
 # ----------------
 # HELPER METHODS
 # ----------------
@@ -21,6 +22,10 @@ def to_boolean_mask(rate):
     nstar = min(nstar, 5)
     nstar = max(nstar, 0)
     return [True] * nstar + [False] * (5 - nstar)
+
+
+def format_time(t):
+    return f"{t.month}/{t.day}/{t.year} {t.hour}:{t.minute}:{t.second}"
 
 
 @app.route('/')
@@ -233,14 +238,104 @@ def delete_review():
     return {"success": True}
 
 
+@app.route("/get_conversations", methods=['POST'])
+@login_required
+def conversations():
+    if not request.method == "POST":
+        flash(f'Error: Invalid Request Method {request.method}', category='danger')
+        return
+
+    argument = json.loads(request.data.decode("utf-8"))
+    if "other" not in argument:
+        flash(f"Error: Invalid request data format", category='danger')
+        return
+
+    other = argument['other']
+    q = Conversation.query.filter(
+        ((Conversation.sender_id == current_user.id) & (Conversation.receiver_id == other)) |
+        ((Conversation.receiver_id == current_user.id) & (Conversation.sender_id == other)))
+    q = q.order_by(Conversation.ts)
+
+    flash("Conversation load successful", category="primary")
+
+    return {
+        "conversation": list(map(
+            lambda x: {
+                "type": "send" if x.sender_id == current_user.id else "receive",
+                "content": x.content,
+                "timestamp": format_time(x.ts)
+            }, q.all()
+        ))
+    }
+
+
+@app.route("/get_contacts", methods=['POST'])
+@login_required
+def contacts():
+    if not request.method == "POST":
+        flash(f'Error: Invalid Request Method {request.method}', category='danger')
+        return
+
+    roi = Conversation.query.\
+        filter(
+            (Conversation.sender_id == current_user.id) |
+            (Conversation.receiver_id == current_user.id))
+
+    roi = roi.with_entities(
+            case(
+                [(Conversation.sender_id == current_user.id, Conversation.receiver_id), ],
+                else_=Conversation.sender_id
+            ).label("other_id"),
+            func.max(Conversation.ts).label("ts"),
+        ).group_by(
+            case(
+                [(Conversation.sender_id == current_user.id, Conversation.receiver_id), ],
+                else_=Conversation.sender_id)
+        ).subquery()
+
+    senders = Conversation.query.\
+        join(roi,
+             (roi.c.other_id == Conversation.sender_id) &
+             (roi.c.ts == Conversation.ts)).\
+        filter(Conversation.receiver_id == current_user.id).\
+        join(User, User.id == roi.c.other_id).\
+        with_entities(
+            Conversation.ts.label("timestamp"),
+            Conversation.content.label("content"),
+            User.name.label("other"),
+            User.id.label("other_id")
+        )
+
+    receivers = Conversation.query.\
+        join(roi,
+             (roi.c.other_id == Conversation.receiver_id) &
+             (roi.c.ts == Conversation.ts)).\
+        filter(Conversation.sender_id == current_user.id).\
+        join(User, User.id == roi.c.other_id).\
+        with_entities(
+            Conversation.ts.label("timestamp"),
+            Conversation.content.label("content"),
+            User.name.label("other"),
+            User.id.label("other_id")
+        )
+
+    return {
+        "contacts": list(map(
+            lambda x: {
+                "other_id": x.other_id,
+                "other": x.other,
+                "content": x.content,
+                "timestamp": format_time(x.timestamp)
+            },
+            senders.union(receivers).order_by(Conversation.ts).all()
+        )),
+    }
+
+
 @app.route("/conversation")
 @login_required
-def all_conversations():
-    # TODO: Given a current logged-in user_id, return a list of all conversations
-    q = Conversation.query.\
-        filter((Conversation.sender_id == current_user.id) | (Conversation.receiver_id == current_user.id))
-    raise "Unimplemented URL"
-    pass
+def conversation_page():
+    return render_template("conversation.html", current=current_user.id)
 
 
 @app.route('/item_info/<int:id>')

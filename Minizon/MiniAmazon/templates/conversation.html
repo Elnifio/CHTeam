@@ -5,13 +5,152 @@
 {% endblock %}
 
 {% block content %}
-    <div class="container">
-        <div class="row">
-            <div class="col-3">
 
+    <style>
+        body {
+            height:100vh;
+            overflow:hidden;
+        }
+    </style>
+
+    <div class="container h-100">
+        <script>
+            function addSendComponent(identifier) {
+                let outer = document.createElement("div");
+                outer.className = "m-2 p-2";
+            }
+
+            function renderMessage(message) {
+                let outer = document.createElement("div");
+                outer.className = "row";
+
+                let smaller = document.createElement("div");
+                smaller.className = "col-3";
+
+                let larger = document.createElement("div");
+                larger.className = "col-9";
+
+                // Message container inside larger
+                let inside = document.createElement("div");
+                inside.className = "m-2 p-2 rounded-lg border border-primary";
+                larger.appendChild(inside);
+
+
+                if (message.type == "send") {
+                    outer.appendChild(smaller);
+                    outer.appendChild(larger);
+                    inside.className += " bg-secondary text-white";
+                } else {
+                    outer.appendChild(larger);
+                    outer.appendChild(smaller);
+                    inside.className += " bg-light text-dark";
+                }
+
+                let content = message.content;
+                if (content.startsWith("image://")) {
+                    // TODO: Renders the base64-encoded image
+                }
+
+                let rendered = document.createElement("p");
+                rendered.innerText = content;
+                inside.appendChild(rendered);
+
+                return outer;
+            }
+
+            function renderConversation(conversations, other_id) {
+                let messageContainer = document.getElementById("conversation-renderer");
+                messageContainer.innerHTML = "";
+                conversations.forEach(msg => {
+                    messageContainer.appendChild(renderMessage(msg));
+                });
+            }
+
+            function loadConversation(other_id) {
+                axios.post("get_conversations", {
+                    other: other_id
+                }).then(function (response) {
+                    let result = response.data;
+                    renderConversation(result.conversation, other_id);
+                }).catch(function (error) {
+                    console.log(error);
+                })
+            }
+
+            function makeContactContainer(contact) {
+                let outer = document.createElement("li");
+                outer.className = "list-group-item";
+                outer.onclick = () => {
+                    loadConversation(contact.other_id);
+                };
+
+                let inner = document.createElement("p");
+                inner.className = "text-truncate";
+                outer.appendChild(inner);
+
+                let name = document.createElement("span");
+                name.innerText = contact.other;
+                name.className = "font-weight-bold";
+                inner.appendChild(name);
+
+                inner.appendChild(document.createElement("br"));
+
+                let comment = document.createElement("span");
+                comment.innerText = contact.content;
+                comment.className = "font-weight-light";
+                inner.appendChild(comment);
+
+                inner.appendChild(document.createElement("br"));
+
+                let time = document.createElement("small");
+                time.innerText = contact.timestamp;
+                time.className = "font-weight-light";
+                inner.appendChild(time);
+
+                return outer;
+            }
+
+            function loadContacts(contacts) {
+                let contactsContainer = document.getElementById("contacts-container");
+                contactsContainer.innerHTML = "";
+                contacts.forEach(contact => {
+                    contactsContainer.appendChild(makeContactContainer(contact));
+                });
+            }
+
+            function getContacts() {
+                axios.post("/get_contacts", {}
+                ).then(function (response) {
+                    let result = response.data;
+                    [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15].forEach(x =>
+                        result.contacts.push({
+                            other_id: -1,
+                            other: `Test ${x}`,
+                            content: "Test",
+                            timestamp: "Test"
+                        })
+                    );
+                    loadContacts(result.contacts);
+                }).catch(function (error) {
+                    console.log(error);
+                })
+            }
+
+            getContacts();
+        </script>
+        <div class="row h-100 m-2 p-2" style="overflow:hidden">
+            <div class="col-3 h-100 d-flex flex-column" style="overflow:scroll">
+                <div class="card scrollable">
+                    <ul class="list-group list-group-flush" id="contacts-container">
+                        <li class="list-group-item" id="loading-item">
+                            <i class="fa fa-spinner fa-spin"></i>
+                            Loading Your Contact List...
+                        </li>
+                    </ul>
+                </div>
             </div>
-            <div class="col-9">
-
+            <div class="col-9 h-100 bg-light" id="conversation-renderer" style="overflow:scroll">
+                Click on one of the contacts on the left to show the contact history (after loading)
             </div>
         </div>
     </div>
