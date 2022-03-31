@@ -220,7 +220,7 @@ class Order_item(db.Model):
     seller_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True) 
     quantity = db.Column(db.Integer, nullable=False)
     price = db.Column(db.Float, nullable=False)
-    fulfill = db.Column(db.String, nullable=False_
+    fulfill = db.Column(db.String, nullable=False)
 
     seller = db.relationship('User', backref='sell_order')
     order = db.relationship('Order', backref='buy_order')
