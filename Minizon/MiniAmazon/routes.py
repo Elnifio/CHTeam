@@ -25,7 +25,7 @@ def to_boolean_mask(rate):
 
 
 def format_time(t):
-    return f"{t.month}/{t.day}/{t.year} {t.hour}:{t.minute}:{t.second}"
+    return f"{t.month}/{t.day}/{t.year} {t.hour}:{t.minute}"
 
 
 @app.route('/')
@@ -238,6 +238,23 @@ def delete_review():
     return {"success": True}
 
 
+@app.route("/receive_message", methods=['POST'])
+@login_required
+def receive_message():
+    assert request.method == "POST", "Request Method invalid"
+    argument = json.loads(request.data.decode("utf-8"))
+    if not ("other" in argument and "content" in argument):
+        return {"status": False}
+    other = argument['other']
+    content = argument['content']
+    message = Conversation(sender_id=current_user.id,
+                           receiver_id=other,
+                           content=content)
+    db.session.add(message)
+    db.session.commit()
+    return {"status": True}
+
+
 @app.route("/get_conversations", methods=['POST'])
 @login_required
 def conversations():
@@ -255,8 +272,6 @@ def conversations():
         ((Conversation.sender_id == current_user.id) & (Conversation.receiver_id == other)) |
         ((Conversation.receiver_id == current_user.id) & (Conversation.sender_id == other)))
     q = q.order_by(Conversation.ts)
-
-    flash("Conversation load successful", category="primary")
 
     return {
         "conversation": list(map(
