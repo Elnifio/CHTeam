@@ -35,7 +35,7 @@ class Item(db.Model):
     @price.expression
     def price(cls):
         return(
-            select([db.func.sum(Inventory.price)]).
+            select([db.func.avg(Inventory.price)]).
             where(cls.id == Inventory.item_id).
             label('price')
         )
@@ -50,7 +50,7 @@ class Item(db.Model):
     @rating.expression
     def rating(cls):
         return(
-            select([db.func.coalesce(db.func.sum(ItemRating.rate), 0)]).
+            select([db.func.coalesce(db.func.avg(ItemRating.rate), 0)]).
             where(cls.id == ItemRating.item_id).
             label('rating')
         )

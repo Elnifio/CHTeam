@@ -67,7 +67,7 @@ def market_page():
             if form.order_by.data == 'Desc':
                 items = query.order_by(order_swicthes.get(form.sort_by.data).desc()).all()
             else:
-                items = query.order_by(order_swicthes.get(form.sort_by.data)).all()
+                items = query.order_by(order_swicthes.get(form.sort_by.data).asc()).all()
         if form.errors != {}:
             for err_msg in form.errors.values():
                 flash(f'Error: {err_msg}', category='danger')
@@ -235,7 +235,8 @@ def delete_review():
 @login_required
 def item_info_page(id):
     item = Item.query.get_or_404(id)
-
+    user_inventory = item.user_inventory.all()
+    print(type(user_inventory))
     # cursor.execute("select avg(rate) from ItemRating where item_id == ?", (id))
     average = ItemRating.query.\
         with_entities(func.avg(ItemRating.rate).label('average')).\
@@ -319,7 +320,8 @@ def item_info_page(id):
                            current=current_user,
                            user_review=current_review[0] if len(current_review) > 0 else None,
                            has_user_review=len(current_review) > 0,
-                           reviewable=True)
+                           reviewable=True,
+                           user_inventory=user_inventory)
 
 
 def allowed_file(filename):
@@ -405,6 +407,16 @@ def item_sell_page(id):
     return render_template('item_sell.html', form=form, item=item)
 
 
+@app.route('/item_edit/<int:id>', methods=['GET', 'POST'])
+@login_required
+def item_edit_page(id):
+    item = Item.query.get_or_404(id)
+    if item.creator_id != current_user.id:
+        flash(f'Sorry, you cannot edit this product since you are not the creator of {item.name}.', category='danger')
+        return redirect(url_for('item_info_page', id=id))
+    return render_template('item_edit.html', item=item)
+
+
 @app.route('/inventory')
 @login_required
 def inventory_page():
@@ -433,6 +445,7 @@ def cart_page():
 def page_not_found(e):
     # note that we set the 404 status explicitly
     return render_template('404.html'), 404
+
 
 @app.route('/public_profile/<int:id>')
 @login_required
