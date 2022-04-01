@@ -123,7 +123,6 @@ class User(db.Model, UserMixin):
 
     seller_inventory = db.relationship('Item', secondary='inventory',
                                        lazy=True, backref=db.backref('sellers', lazy='dynamic'), viewonly=True)
-    sell_order = db.relationship('Order', backref='seller', lazy=True, foreign_keys='Order.seller_id')
 
     @property
     def password_plain(self):
@@ -215,8 +214,8 @@ class Order(db.Model):
         return f'<Order {self.id}>'
 
 class Order_item(db.Model):
-    order_id = db.Column(db.Integer, db.ForeignKey('item.id'), primary_key=True)
-    item_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
+    order_id = db.Column(db.Integer, db.ForeignKey('order.id'), primary_key=True)
+    item_id = db.Column(db.Integer, db.ForeignKey('item.id'), primary_key=True)
     seller_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True) 
     quantity = db.Column(db.Integer, nullable=False)
     price = db.Column(db.Float, nullable=False)
