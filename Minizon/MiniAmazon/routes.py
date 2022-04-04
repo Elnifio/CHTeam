@@ -1,13 +1,14 @@
 from MiniAmazon import app, db, ALLOWED_EXTENSIONS
 from flask import render_template, redirect, url_for, flash, request
 from MiniAmazon.models import Item, Order_item, SellerRating, User, Category, ItemImage, Inventory, ItemRating, ItemUpvote, Order
-from MiniAmazon.forms import BuyHistoryForm, RegisterForm, LoginForm, ItemForm, MarketForm, SellForm
+from MiniAmazon.forms import BuyHistoryForm, RegisterForm, LoginForm, ItemForm, MarketForm, SellForm, EditUserForm
 from flask_login import login_user, login_required, logout_user, current_user
 from werkzeug.utils import secure_filename
 from sqlalchemy import func, case
 import json
 import uuid as uuid
 import os
+from decimal import *
 
 # ----------------
 # HELPER METHODS
@@ -471,7 +472,7 @@ def public_profile__page(id):
 @app.route('/edit_info', methods=['GET', 'POST'])
 @login_required
 def edit_user_page():
-    user = User.query.get_or_404(current_user.id).first()
+    user = User.query.get_or_404(current_user.id)
     form = EditUserForm()
 
     if request.method == 'POST':
@@ -481,11 +482,14 @@ def edit_user_page():
             user.email = form.email.data
             user.address = form.address.data
             user.password = form.password1.data
-            user.balance = user.balance + form.balance_change.data
+            if form.balance_change.data + Decimal(user.balance) < 0:
+                user.balance = 0
+            else:
+                user.balance = form.balance_change.data + Decimal(user.balance)
             db.session.commit()
         if form.errors != {}:
             for err_msg in form.errors.values():
                 flash(f'Error: {err_msg}', category='danger')
 
-    return render_template('edit_info.html', user=user)
+    return render_template('edit_info.html', user=user, form = form)
 
