@@ -30,7 +30,7 @@ def new_seed():
 # ----------------
 # CONFIGS
 # ----------------
-jump = True            # Controls if we skips the data generation part
+jump = False            # Controls if we skips the data generation part
 
 # --------
 # DATA GENERATION SPECIFIC CONFIG
@@ -151,7 +151,7 @@ def create_item_upvotes():
 @data_log()
 def create_conversation():
     # Finds all users
-    users = User.query.all()
+    users = User.query.all()[::-1]
     pairs = combinations(users, 2)
     idx = 0
 
@@ -203,7 +203,6 @@ def create_conversation():
 
         db.session.commit()
         idx += 1
-
 
 
 # ----------------
@@ -387,7 +386,7 @@ def conversations():
 
 def contacts():
     print("--------\n\n\n--------")
-    uoi = User.query.filter(User.id == 1).all()[0]
+    uoi = User.query.filter(User.id == 17).all()[0]
 
     roi = Conversation.query.filter((Conversation.sender_id == uoi.id) | (Conversation.receiver_id == uoi.id))
 

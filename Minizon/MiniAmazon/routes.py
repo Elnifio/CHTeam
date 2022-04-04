@@ -4,7 +4,7 @@ from MiniAmazon.models import Item, User, Category, ItemImage, Inventory, ItemRa
 from MiniAmazon.forms import RegisterForm, LoginForm, ItemForm, MarketForm, SellForm
 from flask_login import login_user, login_required, logout_user, current_user
 from werkzeug.utils import secure_filename
-from sqlalchemy import func, case
+from sqlalchemy import func, case, desc
 import json
 import uuid as uuid
 import os
@@ -26,6 +26,12 @@ def to_boolean_mask(rate):
 
 def format_time(t):
     return f"{t.month}/{t.day}/{t.year} {t.hour}:{t.minute}"
+
+
+control_message = {
+    "initiated": "INITIATED",
+    "image_header": "image://"
+}
 
 
 @app.route('/')
@@ -269,8 +275,9 @@ def conversations():
 
     other = argument['other']
     q = Conversation.query.filter(
-        ((Conversation.sender_id == current_user.id) & (Conversation.receiver_id == other)) |
-        ((Conversation.receiver_id == current_user.id) & (Conversation.sender_id == other)))
+        (Conversation.content != control_message['initiated']) &
+        (((Conversation.sender_id == current_user.id) & (Conversation.receiver_id == other)) |
+        ((Conversation.receiver_id == current_user.id) & (Conversation.sender_id == other))))
     q = q.order_by(Conversation.ts)
 
     return {
@@ -342,7 +349,7 @@ def contacts():
                 "content": x.content,
                 "timestamp": format_time(x.timestamp)
             },
-            senders.union(receivers).order_by(Conversation.ts).all()
+            senders.union(receivers).order_by(desc(Conversation.ts)).all()
         )),
     }
 
