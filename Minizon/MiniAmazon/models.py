@@ -35,7 +35,7 @@ class Item(db.Model):
     @price.expression
     def price(cls):
         return(
-            select([db.func.sum(Inventory.price)]).
+            select([db.func.avg(Inventory.price)]).
             where(cls.id == Inventory.item_id).
             label('price')
         )
@@ -50,7 +50,7 @@ class Item(db.Model):
     @rating.expression
     def rating(cls):
         return(
-            select([db.func.coalesce(db.func.sum(ItemRating.rate), 0)]).
+            select([db.func.coalesce(db.func.avg(ItemRating.rate), 0)]).
             where(cls.id == ItemRating.item_id).
             label('rating')
         )
@@ -123,7 +123,6 @@ class User(db.Model, UserMixin):
 
     seller_inventory = db.relationship('Item', secondary='inventory',
                                        lazy=True, backref=db.backref('sellers', lazy='dynamic'), viewonly=True)
-    sell_order = db.relationship('Order', backref='seller', lazy=True, foreign_keys='Order.seller_id')
 
     @property
     def password_plain(self):
@@ -209,21 +208,21 @@ class Order(db.Model):
     total_price = db.Column(db.Float, nullable=False)
     status = db.Column(db.Text, nullable=False)
 
-    seller_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    buyer_id = db.Column(db.Integer, nullable=False)
-
-    items = db.relationship('Item', secondary='order_items', lazy='dynamic')
+    buyer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
     def __repr__(self):
         return f'<Order {self.id}>'
 
-# TODO: to association
-order_items = db.Table(
-    'order_items',
-    db.Column('order_id', db.Integer, db.ForeignKey('order.id'), primary_key=True),
-    db.Column('item_id', db.Integer, db.ForeignKey('item.id'), primary_key=True),
-    db.Column('quantity', db.Integer, nullable=False),
-    db.Column('price', db.Float, nullable=False)
-)
+class Order_item(db.Model):
+    order_id = db.Column(db.Integer, db.ForeignKey('order.id'), primary_key=True)
+    item_id = db.Column(db.Integer, db.ForeignKey('item.id'), primary_key=True)
+    seller_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True) 
+    quantity = db.Column(db.Integer, nullable=False)
+    price = db.Column(db.Float, nullable=False)
+    fulfill = db.Column(db.String, nullable=False)
+
+    seller = db.relationship('User', backref='sell_order')
+    order = db.relationship('Order', backref='buy_order')
+    item = db.relationship('Item', backref='order_item')
 
 
