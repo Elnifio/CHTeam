@@ -30,7 +30,7 @@ def new_seed():
 # ----------------
 # CONFIGS
 # ----------------
-jump = False            # Controls if we skips the data generation part
+jump = True            # Controls if we skips the data generation part
 
 # --------
 # DATA GENERATION SPECIFIC CONFIG
@@ -43,6 +43,8 @@ genconf = {
     'nitemupvotes': 20,         # Controls number of item upvotes generated
     "nconversations": 20,       # Controls number of conversations generated
     "maxconversationlength": 20,# Controls maximum length of the conversation
+    "nsellerratings": 20,
+    "nsellerupvotes": 20,
     'indent': -1
 }
 
@@ -122,7 +124,7 @@ def create_item_ratings():
         random.seed(new_seed())
         commenter = users[random.randint(0, len(users) - 1)]
         comment = "Comment %s: User %r commented on item %r" % (i, commenter, item)
-        rating = ItemRating(item_id=item.id, rater_id=commenter.id,
+        rating = ItemRating(rated_id=item.id, rater_id=commenter.id,
                             comment=comment, rate=random.randint(0, 5))
         db.session.add(rating)
 
@@ -140,6 +142,50 @@ def create_item_upvotes():
         random.seed(new_seed())
         voter = users[random.randint(0, len(users) - 1)]
         upvote = ItemUpvote(rating_id=rating.id, voter_id=voter.id)
+        if (rating.id, voter.id) not in upvotes:
+            upvotes.append((rating.id, voter.id))
+            db.session.add(upvote)
+        else:
+            continue
+    db.session.commit()
+
+
+@data_log()
+def create_seller_ratings():
+    users = User.query.all()
+    random.seed(new_seed())
+    pairs = list(combinations(users, 2))
+    random.shuffle(pairs)
+    idx = 0
+
+    for pair in pairs:
+        if idx >= genconf['nsellerratings']:
+            break
+
+        random.seed(new_seed())
+        commenter = pair[0]
+        seller = pair[1]
+        comment = f"User {commenter} commented to Seller {seller}"
+        rating = SellerRating(rated_id=seller.id, rater_id=commenter.id,
+                              comment=comment, rate=random.randint(0,5))
+
+        idx += 1
+        db.session.add(rating)
+
+    db.session.commit()
+
+
+@data_log()
+def create_seller_upvotes():
+    users = User.query.all()
+    ratings = SellerRating.query.all()
+    upvotes = []
+    while len(upvotes) < genconf['nsellerupvotes']:
+        random.seed(new_seed())
+        rating = ratings[random.randint(0, len(ratings) - 1)]
+        random.seed(new_seed())
+        voter = users[random.randint(0, len(users) - 1)]
+        upvote = SellerUpvote(rating_id=rating.id, voter_id=voter.id)
         if (rating.id, voter.id) not in upvotes:
             upvotes.append((rating.id, voter.id))
             db.session.add(upvote)
@@ -217,9 +263,11 @@ def generate_data():
     # create_user()
     # create_categories()
     # create_items()
-    # create_item_ratings()
-    # create_item_upvotes()
-    create_conversation()
+    create_item_ratings()
+    create_item_upvotes()
+    # create_conversation()
+    create_seller_ratings()
+    create_seller_upvotes()
     return
 
 
@@ -240,7 +288,7 @@ def item_rating_average_test():
     for item in items:
         result = ItemRating.query.\
             with_entities(func.avg(ItemRating.rate).label("average")).\
-            filter(ItemRating.item_id == item.id).all()
+            filter(ItemRating.rated_id == item.id).all()
         print("Item %s rating: %s" % (item.id, round(result[0][0], 1) if result[0][0] is not None else result[0][0]))
 
     print("--------")
@@ -252,7 +300,7 @@ def item_rating_average_test():
 
     print("--------")
     for item in items:
-        result = ItemRating.query.filter(ItemRating.item_id == item.id). \
+        result = ItemRating.query.filter(ItemRating.rated_id == item.id). \
             with_entities(func.count(ItemRating.rater_id).label("cnt"), ItemRating.rate). \
             group_by(ItemRating.rate).all()
         print("Item", item.id, "rating:", result)
@@ -298,12 +346,12 @@ def item_upvote_test2():
     #         select
     #         rating.id as id,
     #         user.name as name,
-    #         rating.item_id as item,
+    #         rating.rated_id as item,
     #         rating.comment as comment,
     #         rating.rate as rate,
     #         rating.ts as ts
     #     from rating join user on rating.rater_id == user.id
-    #     where rating.item_id == ?
+    #     where rating.rated_id == ?
     # ) as withname
     # on upvote.rating_id == withname.id
     # group by withname.id
@@ -311,14 +359,14 @@ def item_upvote_test2():
     # ?, ? represents (current user, current item)
     # ----------------
 
-    subq = ItemRating.query.filter(ItemRating.item_id == item.id).\
+    subq = ItemRating.query.filter(ItemRating.rated_id == item.id).\
         join(User, User.id == ItemRating.rater_id).\
         outerjoin(ItemUpvote, ItemRating.id == ItemUpvote.rating_id).\
-        group_by(ItemRating.id, User.name, ItemRating.item_id, ItemRating.comment, ItemRating.rate, ItemRating.ts).\
+        group_by(ItemRating.id, User.name, ItemRating.rated_id, ItemRating.comment, ItemRating.rate, ItemRating.ts).\
         with_entities(
             ItemRating.id.label("rating_id"),
             User.name.label("name"),
-            ItemRating.item_id.label("item_id"),
+            ItemRating.rated_id.label("rated_id"),
             ItemRating.comment.label("comment"),
             ItemRating.rate.label("rate"),
             ItemRating.ts.label("ts"),
@@ -332,14 +380,14 @@ def item_upvote_test2():
     #     join(ItemUpvote, subq.c.rating_id == ItemUpvote.rating_id). \
     #     group_by(subq.c.rating_id,
     #              subq.c.name,
-    #              subq.c.item_id,
+    #              subq.c.rated_id,
     #              subq.c.comment,
     #              subq.c.rate,
     #              subq.c.ts).\
     #     with_entities(
     #         subq.c.rating_id.label("rating_id"),
     #         subq.c.name.label("commenter"),
-    #         subq.c.item_id.label("item_id"),
+    #         subq.c.rated_id.label("rated_id"),
     #         subq.c.comment.label("comment"),
     #         subq.c.rate.label("rate"),
     #         subq.c.ts.label("ts"),
@@ -437,5 +485,44 @@ def contacts():
     return
 
 
-contacts()
+def find_rating_average_test():
+    soi = 15
+    coi = 6
+    average = SellerRating.query.with_entities(func.avg(SellerRating.rate).label("average")).\
+        filter(SellerRating.rated_id == soi).all()[0][0]
 
+    q = SellerRating.query.filter(SellerRating.rated_id == soi).\
+        join(User, User.id == SellerRating.rater_id).\
+        outerjoin(SellerUpvote, SellerRating.id == SellerUpvote.rating_id).\
+        group_by(SellerRating.id, User.name, SellerRating.rated_id, SellerRating.comment, SellerRating.rate, SellerRating.ts).\
+        with_entities(
+            SellerRating.id.label("rating_id"),
+            User.name.label("name"),
+            SellerRating.rated_id.label("rated_id"),
+            SellerRating.comment.label("comment"),
+            SellerRating.rate.label("rate"),
+            SellerRating.ts.label("ts"),
+            func.count(SellerUpvote.voter_id).label("num_upvotes"),
+            func.max(
+                case([(SellerUpvote.voter_id == coi, 1)], else_=0)
+            ).label("is_voted")
+        )
+
+    distribution = SellerRating.query.filter(SellerRating.rated_id == soi).\
+        with_entities(SellerRating.rate, func.count(SellerRating.rater_id).label("cnt")).\
+        group_by(SellerRating.rate)
+
+    current_review = SellerRating.query.filter(SellerRating.rated_id == soi, SellerRating.rater_id == coi)
+
+    print("--------\n\n--------")
+    # print(distribution.all())
+    print(current_review.all())
+    # ratings = q.all()
+    # for item in ratings:
+    #     print(item)
+    #     print("----")
+
+
+
+
+find_rating_average_test()
