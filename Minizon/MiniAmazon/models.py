@@ -213,6 +213,7 @@ class Order(db.Model):
     def __repr__(self):
         return f'<Order {self.id}>'
 
+
 class Order_item(db.Model):
     order_id = db.Column(db.Integer, db.ForeignKey('order.id'), primary_key=True)
     item_id = db.Column(db.Integer, db.ForeignKey('item.id'), primary_key=True)

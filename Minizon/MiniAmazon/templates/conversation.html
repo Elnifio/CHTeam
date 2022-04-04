@@ -58,7 +58,7 @@
                         scrollToBottom();
                         clearHistory();
 
-                        axios.post("receive_message", {
+                        axios.post("{{ url_for('receive_message') }}", {
                             other: otherID,
                             content: draft.value
                         }).then(function (response) {
@@ -70,6 +70,9 @@
                                 statusDisplay.className = "float-right fa fa-refresh text-danger";
                                 statusDisplay.onclick = resendMessage(draft.value);
                             }
+
+                            Array.from(msgbox.children).filter(x => x.classList.contains("col-9"))[0].children[0].children[2].innerText = result.timestamp;
+                            scrollToBottom();
                         }).catch(function (error) {
                             console.log(error);
                         })
@@ -136,9 +139,18 @@
                         // TODO: Renders the base64-encoded image
                     }
 
-                    let rendered = document.createElement("p");
+                    let rendered = document.createElement("span");
                     rendered.innerText = content;
                     inside.appendChild(rendered);
+
+                    inside.appendChild(document.createElement("br"));
+
+                    let timestamp = document.createElement("small");
+                    if (message.timestamp === undefined) {
+                        message.timestamp = "";
+                    }
+                    timestamp.innerText = message.timestamp;
+                    inside.appendChild(timestamp);
 
                     return outer;
                 }
@@ -157,7 +169,7 @@
                     draft.placeholder = "Type in your message here";
                     saveToHistory(draft.value);
 
-                    axios.post("get_conversations", {
+                    axios.post("{{ url_for('conversations') }}", {
                         other: other_id
                     }).then(function (response) {
                         let result = response.data;
@@ -211,7 +223,7 @@
                 }
 
                 function getContacts() {
-                    axios.post("/get_contacts", {}
+                    axios.post("{{ url_for('contacts') }}", {}
                     ).then(function (response) {
                         let result = response.data;
                         loadContacts(result.contacts);
