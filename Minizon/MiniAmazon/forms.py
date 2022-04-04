@@ -53,4 +53,21 @@ class SellForm(FlaskForm):
     price = DecimalField(places=2, label='Price', validators=[NumberRange(min=0.0)])
     quantity = IntegerField(label='Quantity', validators=[NumberRange(min=1)])
     submit = SubmitField(label='Sell')
-    
+
+class BuyHistoryForm(FlaskForm):
+    search_by = SelectField(label='Search By', choices=['All','Item', 'Seller', 'Date'])
+    search = StringField(label='Keyword', validators=[DataRequired(),
+                                                      Regexp(regex, message="Keyword"+letter_constraint)])
+    submit = SubmitField(label='Submit')
+
+class EditUserForm(FlaskForm):
+    username = StringField(label='User Name:', validators=
+    [Length(min=2, max=50), DataRequired(), Regexp(regex=regex, message="Username"+letter_constraint)])
+    email = StringField(label='Email Address:', validators=[Email(), DataRequired()])
+    address = StringField(label='Delivery Address:', validators=[Length(max=100), DataRequired(),
+                                                    Regexp(regex, message="Address"+letter_constraint)])
+    password1 = PasswordField(label='Password:', validators=[Length(min=6, max=60), DataRequired(),
+                                                    Regexp(regex, message="Password"+letter_constraint)])
+    password2 = PasswordField(label='Confirm Password:', validators=[EqualTo('password1'), DataRequired()])
+    balance_change = DecimalField(places=2, label='Balance Change', validators=[NumberRange(min=-1000.0, max=1000.0)])
+    submit = SubmitField(label='Edit Account')

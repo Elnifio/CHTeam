@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+
+{% block title %}
+    Edit User Info
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <p>{{ current_user.name }} is editing </p>
+    <p><a href={{ url_for('home_page') }}>Click here</a> to redirect to homepage.</p>
+
+    <body class="text-center">
+        <div class="container">
+            <form method="POST" class="form-query" style="color:black">
+                <!-- protect against CSRF -->
+                {{ form.hidden_tag() }}
+                <h1 class="h3 mb-3 font-weight-bold">
+                    Edit Account
+                </h1>
+                <br>
+                {{ form.username.label() }}
+                {{ form.username(class="form-control", placeholder="User Name") }}
+                <div class="mt-2">
+                {{ form.email.label() }}
+                {{ form.email(class="form-control", placeholder="Email Address") }}
+                </div>
+                <div class="mt-2">
+                {{ form.address.label() }}
+                {{ form.address(class="form-control", placeholder="Delivery Address") }}
+                </div>
+                <div class="mt-2">
+                {{ form.password1.label() }}
+                {{ form.password1(class="form-control", placeholder="Password") }}
+                </div>
+                <div class="mt-2">
+                {{ form.password2.label() }}
+                {{ form.password2(class="form-control", placeholder="Confirm Password") }}
+                </div>
+                div class="mt-2">
+                {{ form.balance_change.label() }}
+                {{ form.balance_change(class="form-control", placeholder="+ for add, - for remove") }}
+                </div>
+                <br>
+                {{ form.submit(class="btn btn-lg btn-block btn-primary") }}
+            </form>
+        </div>
+    </body>
+</div>
+{% endblock %}

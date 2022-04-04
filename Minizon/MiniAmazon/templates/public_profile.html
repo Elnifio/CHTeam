@@ -1,9 +1,51 @@
 {% extends 'base.html' %}
 
 {% block title %}
-    User Profile
+    Profile
 {% endblock %}
 
 {% block content %}
-
+<div class="container">
+<p><a href={{ url_for('home_page') }}>Click here</a> to redirect to homepage.</p>
+<table class="table table-hover table-striped table-sm">
+    <thead class="thead-dark">
+    <tr>
+        <th scope="col">User ID</th>
+        <th scope="col">Name</th>
+        <th scope="col">Address</th>
+        <th scope="col">Email</th>
+    </tr>
+    </thead>
+    <tbody>
+    <!-- Your rows inside the table HERE: -->
+    {%  if user %}
+    {% for u in user %}
+        <tr>
+            <td><h5 class="mt-4">{{ u.id }}</h5></td>
+            <td><h5 class="mt-4">{{ u.name }}</h5></td>
+            <td><h5 class="mt-4">{{ u.address }}</h5></td>
+            <td><h5 class="mt-4">{{ u.email }}</h5></td>
+        </tr>
+    {% endfor %}
+    {% endif %}
+    </tbody>
+</table>
+<table class="table table-hover table-striped table-sm">
+    <thead class="thead-dark">
+    <tr>
+        <th scope="col">Reviews</th>
+    </tr>
+    </thead>
+    <tbody>
+    <!-- Your rows inside the table HERE: -->
+    {%  if review %}
+    {% for r in review %}
+        <tr>
+            <td><h5 class="mt-4">{{ r.comment }}</h5></td>
+        </tr>
+    {% endfor %}
+    {% endif %}
+    </tbody>
+</table>
+</div>
 {% endblock %}

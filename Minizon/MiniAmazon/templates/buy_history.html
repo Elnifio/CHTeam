@@ -1,9 +1,65 @@
 {% extends 'base.html' %}
 
 {% block title %}
-    Home
+    Purchase History
 {% endblock %}
 
 {% block content %}
-
+<div class="container">
+    <form method="POST" class="form-query" style="color:black" enctype="multipart/form-data">
+        {{ form.hidden_tag() }}
+    <div class="d-flex justify-content-center">
+        <div class="p-2 bd-highlight">
+            <div class="d-flex flex-row">
+                <h4 class="mr-3">Search by: </h4>
+                {{ form.search_by(class="form-control") }}
+            </div>
+        </div>
+        <div class="p-2 bd-highlight">
+            <div class="d-flex flex-row">
+                <h4 class="ml-7 mr-3">Search: </h4>
+                {{ form.search(class="form-control") }}
+                {{ form.submit(class="btn btn-lg btn-block btn-primary ml-3 p-0") }}
+            </div>
+        </div>
+    </div>
+    </form>
+<hr/>
+<table class="table table-hover table-striped table-sm">
+    <thead class="thead-dark">
+    <tr>
+        <th scope="col">Order_id</th>
+        <th scope="col">Seller ID</th>
+        <th scope="col">Address</th>
+        <th scope="col">Item name</th>
+        <th scope="col">Order Date</th>
+        <th scope="col">Quantity</th>
+        <th scope="col">Total Price</th>
+        <th scope="col">Status</th>
+    </tr>
+    </thead>
+    <tbody>
+    <!-- Your rows inside the table HERE: -->
+    {%  if buy_order %}
+    {% for order in buy_order %}
+        <tr>
+            <td><h5 class="mt-4">{{ order.order_id }}</h5></td>
+            <td><h5 class="mt-4">{{ order.order_item.seller_id }}</h5></td>
+            <td><h5 class="mt-4">{{ order.address }}</h5></td>
+            <td><h5 class="mt-4">{{ order.order_item.item.name }}</h5></td>
+            <td><h5 class="mt-4">{{ order.Date }}</h5></td>
+            <td><h5 class="mt-4">{{ order.order_item.quantity }}</h5></td>
+            <td><h5 class="mt-4">{{ order.order_item.price }}</h5></td>
+            <td><h5 class="mt-4">{{ order.order_item.fulfill }}</h5></td>
+            <td>
+                <div class="mt-3">
+                    <a class="btn btn-outline btn-info mt-2 mb-2" href="{{ url_for('order_detail_page', id=order.order_id)}}">Order Details</a>
+                </div>
+            </td>
+        </tr>
+    {% endfor %}
+    {% endif %}
+    </tbody>
+</table>
+</div>
 {% endblock %}
