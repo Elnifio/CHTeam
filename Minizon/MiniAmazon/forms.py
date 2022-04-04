@@ -48,9 +48,21 @@ class MarketForm(FlaskForm):
     order_by = SelectField(label='Order By', choices=['Asc', 'Desc'])
     submit = SubmitField(label='Submit')
 
+class InventoryForm(FlaskForm):
+    search = StringField('')
+    submit = SubmitField(label='Submit')
 
 class SellForm(FlaskForm):
     price = DecimalField(places=2, label='Price', validators=[NumberRange(min=0.0)])
     quantity = IntegerField(label='Quantity', validators=[NumberRange(min=1)])
     submit = SubmitField(label='Sell')
     
+class InventoryEditForm(FlaskForm):
+    price = DecimalField(places=2, label='Price', validators=[NumberRange(min=0.0)])
+    quantity = IntegerField(label='Quantity', validators=[NumberRange(min=0)])
+    submit = SubmitField(label='Edit')
+
+class SellHistoryForm(FlaskForm):
+    sort_by = SelectField(label='Sort By', choices=['Date', 'Price'])
+    order_by = SelectField(label='Order By', choices=['Desc', 'Asc'])
+    submit = SubmitField(label='Submit')

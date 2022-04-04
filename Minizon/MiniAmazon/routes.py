@@ -1,10 +1,10 @@
 from MiniAmazon import app, db, ALLOWED_EXTENSIONS
 from flask import render_template, redirect, url_for, flash, request
-from MiniAmazon.models import Item, User, Category, ItemImage, Inventory, ItemRating, ItemUpvote
-from MiniAmazon.forms import RegisterForm, LoginForm, ItemForm, MarketForm, SellForm
+from MiniAmazon.models import Item, User, Category, ItemImage, Inventory, ItemRating, ItemUpvote, Order,Order_item
+from MiniAmazon.forms import RegisterForm, LoginForm, ItemForm, MarketForm, SellForm, InventoryForm, InventoryEditForm, SellHistoryForm
 from flask_login import login_user, login_required, logout_user, current_user
 from werkzeug.utils import secure_filename
-from sqlalchemy import func, case
+from sqlalchemy import func, case, desc, asc
 import json
 import uuid as uuid
 import os
@@ -417,22 +417,118 @@ def item_edit_page(id):
     return render_template('item_edit.html', item=item)
 
 
-@app.route('/inventory')
+@app.route('/inventory',methods=['GET', 'POST'])
 @login_required
 def inventory_page():
-    return render_template('inventory.html')
+    inventory = None
+    query = None
+    form = InventoryForm()
+    if request.method == 'POST':
+        if form.validate_on_submit():
+            # process search
+            search = form.search.data
+            query = Inventory.query.filter(Inventory.seller_id==current_user.id)
+            if search != '':
+                query = query.filter(
+                    Inventory.item.name.ilike(f'%{search}%')
+                ).first().inventory
+            # process sort and order
+            inventory = query.all()
+            
+        if form.errors != {}:
+            for err_msg in form.errors.values():
+                flash(f'Error: {err_msg}', category='danger')
 
+    return render_template('inventory.html', inventory=inventory, form=form)
 
-@app.route('/sell_history')
+@app.route('/inventory_edit/<int:id>', methods=['GET', 'POST'])
+@login_required
+def inventory_edit_page(id):
+    form = InventoryEditForm()
+    item = Item.query.get(id)
+    if request.method == 'POST':
+        if form.validate_on_submit():
+            # check user never sell item
+            record = Inventory.query.filter(Inventory.seller_id==current_user.id and Inventory.item_id == item.id).first()
+            if form.quantity.data == 0:
+                db.session.delete(record)
+                db.session.commit()
+                flash(f'Item Remove Success! Your {item.name} are removed now.',
+                  category='success')
+            else:
+                record.quantity = form.quantity.data
+                record.price = form.price.data
+                db.session.add(record)
+                db.session.commit()
+                flash(f'Inventory Edit Success! Your quantity of {item.name} are edit as {form.quantity.data} now.',
+                  category='success')
+
+            return redirect(url_for('inventory_page'))
+        if form.errors:
+            for err_msg in form.errors.values():
+                flash(f'Item sell failed. {err_msg}', category='danger')
+    return render_template('inventory_edit.html', form=form, item=item)
+    
+@app.route('/sell_history',methods=['GET', 'POST'])
 @login_required
 def sell_history_page():
-    return render_template('sell_history.html')
+    sell_order = None
+    query = None
+    form = SellHistoryForm()
+    if request.method == 'POST':
+        if form.validate_on_submit():
+            # process search
+            query = Order_item.query.filter(Order_item.seller_id==current_user.id)
+            # process sort and order
+            if form.order_by.data == 'Desc':
+                if form.sort_by.data == 'Date':
+                    sell_order = query.join(Order, Order_item.order_id==Order.id).order_by(desc(Order.Date)).all()
+                else:
+                    sell_order = query.order_by(desc(Order_item.price)).all()
+            else:
+                if form.sort_by.data == 'Date':
+                    sell_order = query.join(Order, Order_item.order_id==Order.id).order_by(asc(Order.Date)).all()
+                else:
+                    sell_order = query.order_by(asc(Order_item.price)).all()
+        if form.errors != {}:
+            for err_msg in form.errors.values():
+                flash(f'Error: {err_msg}', category='danger')
+
+    return render_template('sell_history.html', sell_order=sell_order, form=form)
 
 
+@app.route('/fulfill/<int:order_id>/<int:item_id>',methods=['GET', 'POST'])
+@login_required
+def fulfill(order_id,item_id):
+    record = Order_item.query.filter(Order_item.seller_id==current_user.id and Order_item.item_id == item_id and Order_item.order_id == order_id).first()
+    if record.fulfill == "Fulfilled":
+        flash(f'Order fulfill failed: you order item has already been fulfilled.',category='danger')
+    else:
+        record.fulfill = "Fulfilled"
+        flash(f'Fulfill Successfuly',category='success')
+        db.session.add(record)
+        db.session.commit()
+    order_fulfill = Order.query.filter(Order.id == order_id).first()
+    order_fulfill.status = "All fulfilled"
+    order_check = Order_item.query.filter(Order_item.order_id == order_id).all()
+    for each_order in order_check:
+        if each_order.fulfill != "Fulfilled":
+            order_fulfill.status = "Not fulfilled yet"
+    db.session.add(order_fulfill)
+    db.session.commit()
+    return redirect(url_for('sell_history_page'))
+    
 @app.route('/buy_history')
 @login_required
 def buy_history_page():
     return render_template('buy_history.html')
+
+@app.route('/order_detail/<int:id>')
+@login_required
+def order_detail_page(id):
+    order = Order.query.filter(Order.id ==id).first()
+    order_detail = Order_item.query.filter(Order_item.order_id==id).all()
+    return render_template('order_detail.html', order = order, order_detail = order_detail)
 
 
 @app.route('/cart')
