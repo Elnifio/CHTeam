@@ -1,6 +1,6 @@
 from MiniAmazon import app, db, ALLOWED_EXTENSIONS
 from flask import render_template, redirect, url_for, flash, request
-from MiniAmazon.models import Item, User, Category, ItemImage, Inventory, ItemRating, ItemUpvote, Conversation
+from MiniAmazon.models import Item, User, Category, ItemImage, Inventory, ItemRating, ItemUpvote, Conversation, SellerRating, SellerUpvote
 from MiniAmazon.forms import RegisterForm, LoginForm, ItemForm, MarketForm, SellForm
 from flask_login import login_user, login_required, logout_user, current_user
 from werkzeug.utils import secure_filename
@@ -26,6 +26,35 @@ def to_boolean_mask(rate):
 
 def format_time(t):
     return f"{t.month}/{t.day}/{t.year} {t.hour}:{t.minute}"
+
+
+def make_rating_query(rating, upvote, rated_oi, rater_oi):
+    q = rating.query.filter(rating.rated_id == rated_oi). \
+        join(User, User.id == rating.rater_id). \
+        outerjoin(upvote, rating.id == upvote.rating_id). \
+        group_by(
+            rating.id, User.name, rating.rated_id,
+            rating.comment, rating.rate, rating.ts). \
+        with_entities(
+            rating.id.label("rating_id"),
+            User.name.label("name"),
+            rating.rated_id.label("rated_id"),
+            rating.comment.label("comment"),
+            rating.rate.label("rate"),
+            rating.ts.label("ts"),
+            func.count(upvote.voter_id).label("num_upvotes"),
+            func.max(
+                case([(upvote.voter_id == rater_oi, 1)], else_=0)
+            ).label("is_voted")
+        )
+
+    return q
+
+
+def make_rating_average_distribution(rating, rated_oi):
+    return rating.query.\
+                with_entities(func.avg(rating.rate).label("average")).\
+                filter(rating.rated_id == id).all()[0][0]
 
 
 control_message = {
@@ -135,6 +164,12 @@ def logout_page():
     return render_template('home.html')
 
 
+def item_reviewable(user_id, item_id):
+    # TODO: Checks if the user has bought the item
+
+    pass
+
+
 @app.route("/item_upvote", methods=['POST'])
 @login_required
 def item_upvote():
@@ -177,9 +212,10 @@ def item_upvote():
             ).label("is_voted")
         ).all()
 
-    if not len(q) == 1:
-        flash("Error: Item Upvote aggregation returned multiple instances")
-    assert len(q) == 1, "Item Upvote aggregation returned multiple instances"
+    if len(q) == 0:
+        return {'upvotes': 0, 'voted': False}
+
+    assert len(q) == 1, f"Item Upvote aggregation did not match operation: {str(q)}"
     return {'upvotes': q[0].num_upvotes, 'voted': q[0].is_voted == 1}
 
 
@@ -200,7 +236,7 @@ def receive_item_review():
         flash(f"Error: Invalid rater", category="danger")
     assert argument['user'] == current_user.id, "Provided user is not current user"
 
-    q = ItemRating.query.filter(ItemRating.item_id == argument['item'], ItemRating.rater_id == argument['user']).all()
+    q = ItemRating.query.filter(ItemRating.rated_id == argument['item'], ItemRating.rater_id == argument['user']).all()
 
     if len(q) == 0:
         new_rate = ItemRating(item_id=argument['item'], rater_id=argument['user'],
@@ -234,7 +270,7 @@ def delete_review():
     assert argument['user'] == current_user.id, "Provided user is not current user"
 
     q = ItemRating.query.\
-        filter(ItemRating.item_id == argument['item'], ItemRating.rater_id == argument['user']).\
+        filter(ItemRating.rated_id == argument['item'], ItemRating.rater_id == argument['user']).\
         delete()
     if q == 0:
         flash(f"Error: 0 Rating deleted")
@@ -365,14 +401,15 @@ def conversation_page():
 def item_info_page(id):
     item = Item.query.get_or_404(id)
     user_inventory = item.user_inventory.all()
-    print(type(user_inventory))
-    # cursor.execute("select avg(rate) from ItemRating where item_id == ?", (id))
+    # cursor.execute("select avg(rate) from ItemRating where rated_id == ?", (id))
     average = ItemRating.query.\
         with_entities(func.avg(ItemRating.rate).label('average')).\
-        filter(ItemRating.item_id == id).all()[0][0]
+        filter(ItemRating.rated_id == id).all()[0][0]
 
-    # cursor.execute("select * from ItemRating where item_id == ?", (id))
-    # ratings = ItemRating.query.filter(ItemRating.item_id == id).all()
+    commentable = True
+
+    # cursor.execute("select * from ItemRating where rated_id == ?", (id))
+    # ratings = ItemRating.query.filter(ItemRating.rated_id == id).all()
     # ----------------
     # Translates the following sql:
     # --------
@@ -395,12 +432,12 @@ def item_info_page(id):
     #         select
     #         rating.id as id,
     #         user.name as name,
-    #         rating.item_id as item,
+    #         rating.rated_id as item,
     #         rating.comment as comment,
     #         rating.rate as rate,
     #         rating.ts as ts
     #     from rating join user on rating.rater_id == user.id
-    #     where rating.item_id == ?
+    #     where rating.rated_id == ?
     # ) as withname
     # on upvote.rating_id == withname.id
     # group by withname.id
@@ -408,29 +445,29 @@ def item_info_page(id):
     # ?, ? represents (current user, current item)
     # ----------------
 
-    q = ItemRating.query.filter(ItemRating.item_id == item.id). \
+    q = ItemRating.query.filter(ItemRating.rated_id == item.id). \
         join(User, User.id == ItemRating.rater_id). \
         outerjoin(ItemUpvote, ItemRating.id == ItemUpvote.rating_id). \
-        group_by(ItemRating.id, User.name, ItemRating.item_id, ItemRating.comment, ItemRating.rate, ItemRating.ts). \
+        group_by(ItemRating.id, User.name, ItemRating.rated_id, ItemRating.comment, ItemRating.rate, ItemRating.ts). \
         with_entities(
         ItemRating.id.label("rating_id"),
         User.name.label("name"),
-        ItemRating.item_id.label("item_id"),
+        ItemRating.rated_id.label("rated_id"),
         ItemRating.comment.label("comment"),
         ItemRating.rate.label("rate"),
         ItemRating.ts.label("ts"),
         func.count(ItemUpvote.voter_id).label("num_upvotes"),
         func.max(
             case([(ItemUpvote.voter_id == current_user.id, 1)], else_=0)
-        )
+        ).label("is_voted")
     )
     ratings = q.all()
 
     # cursor.execute("select rate, count(rater_id) as cnt
     #                   from ItemRating
-    #                   where item_id == ?
+    #                   where rated_id == ?
     #                   group by rate", (id))
-    distribution = ItemRating.query.filter(ItemRating.item_id == id).\
+    distribution = ItemRating.query.filter(ItemRating.rated_id == id).\
         with_entities(ItemRating.rate, func.count(ItemRating.rater_id).label("cnt")).\
         group_by(ItemRating.rate).all()
 
@@ -438,8 +475,7 @@ def item_info_page(id):
     for dist in distribution:
         actuals[dist[0]] = dist[1]
 
-    current_review = ItemRating.query.filter(ItemRating.item_id == id, ItemRating.rater_id == current_user.id).all()
-    print(ItemRating.query.filter(ItemRating.item_id == id).all())
+    current_review = ItemRating.query.filter(ItemRating.rated_id == id, ItemRating.rater_id == current_user.id).all()
 
     return render_template('item_info.html', item=item,
                            reviews=ratings,
@@ -580,5 +616,132 @@ def page_not_found(e):
 @login_required
 def public_profile__page(id):
     user = User.query.get_or_404(id)
-    return render_template('public_profile.html', user=user)
 
+    commentable = True
+    average = SellerRating.query.\
+        with_entities(func.avg(SellerRating.rate).label("average")).\
+        filter(SellerRating.rated_id == id).all()[0][0]
+
+    # q = SellerRating.query.filter(SellerRating.rated_id == id). \
+    #     join(User, User.id == SellerRating.rater_id). \
+    #     outerjoin(SellerUpvote, SellerRating.id == SellerUpvote.rating_id). \
+    #     group_by(
+    #         SellerRating.id, User.name, SellerRating.rated_id,
+    #         SellerRating.comment, SellerRating.rate, SellerRating.ts). \
+    #     with_entities(
+    #         SellerRating.id.label("rating_id"),
+    #         User.name.label("name"),
+    #         SellerRating.rated_id.label("rated_id"),
+    #         SellerRating.comment.label("comment"),
+    #         SellerRating.rate.label("rate"),
+    #         SellerRating.ts.label("ts"),
+    #         func.count(SellerUpvote.voter_id).label("num_upvotes"),
+    #         func.max(
+    #             case([(SellerUpvote.voter_id == current_user.id, 1)], else_=0)
+    #         ).label("is_voted")
+    #     )
+    ratings = make_rating_query(SellerRating, SellerUpvote, id, current_user.id).all()
+
+    distribution = SellerRating.query.filter(SellerRating.rated_id == id).\
+        with_entities(SellerRating.rate, func.count(SellerRating.rater_id).label("cnt")).\
+        group_by(SellerRating.rate).all()
+    actuals = {x: 0 for x in range(6)}
+    for dist in distribution:
+        actuals[dist[0]] = dist[1]
+
+    current_review = SellerRating.query.\
+        filter(SellerRating.rated_id == id, SellerRating.rater_id == current_user.id).all()
+    return render_template('public_profile.html', user=user,
+                           reviews=ratings,
+                           average=round(average, 1) if average is not None else average,
+                           distribution=actuals, num_reviews=len(ratings),
+                           boolean_mask=to_boolean_mask,
+                           current=current_user,
+                           user_review=current_review[0] if len(current_review) > 0 else None,
+                           has_user_review=len(current_review) > 0,
+                           reviewable=True)
+
+
+@app.route("/seller_upvote", methods=['POST'])
+@login_required
+def seller_upvote():
+    assert request.method == "POST"
+    argument = json.loads(request.data.decode("utf-8"))
+    assert "user" in argument and "rating" in argument, "Illegal Data Provided"
+
+    assert argument['user'] == current_user.id, "Illegal User detected"
+
+    rating_id = argument['rating']
+    query = SellerUpvote.query.filter(SellerUpvote.rating_id == rating_id, SellerUpvote.voter_id == current_user.id)
+    is_voted = len(query.all())
+
+    if is_voted != 0:
+        result = query.delete()
+        assert result != 0, "Number of Seller Upvotes in database is inconsistent with is_voted"
+        db.session.commit()
+    else:
+        upvote = SellerUpvote(rating_id=rating_id, voter_id=current_user.id)
+        db.session.add(upvote)
+        db.session.commit()
+
+    q = SellerUpvote.query.filter(SellerUpvote.rating_id == rating_id). \
+        group_by(SellerUpvote.rating_id). \
+        with_entities(
+            func.count(SellerUpvote.voter_id).label("num_upvotes"),
+            func.max(
+                case([(SellerUpvote.voter_id == current_user.id, 1)], else_=0)
+            ).label("is_voted")
+        ).all()
+
+    if len(q) == 0:
+        return {'upvotes': 0, 'voted': False}
+
+    assert len(q) == 1, f"Seller Upvote aggregation did not match operation: {str(q)}"
+    return {'upvotes': q[0].num_upvotes, 'voted': q[0].is_voted == 1}
+
+
+@app.route("/seller_review", methods=['POST'])
+@login_required
+def receive_seller_review():
+    assert request.method == "POST"
+
+    argument = json.loads(request.data.decode("utf-8"))
+    for item in ['user', "item", 'rate', 'comment']:
+        assert item in argument, item + " not in argument: " + str(argument)
+
+    assert argument['user'] == current_user.id, "Provided user is not current user"
+
+    q = SellerRating.query.filter(SellerRating.rated_id == argument['item'], SellerRating.rater_id == argument['user']).all()
+
+    if len(q) == 0:
+        new_rate = SellerRating(rated_id=argument['item'], rater_id=argument['user'],
+                              comment=argument['comment'], rate=argument['rate'])
+        db.session.add(new_rate)
+        db.session.commit()
+        return {"comment": new_rate.comment}
+    else:
+        roi = q[0]
+        roi.comment = argument['comment']
+        roi.rate = argument['rate']
+        db.session.commit()
+        return {'comment': roi.comment}
+
+
+@app.route("/delete_seller_review", methods=["POST"])
+@login_required
+def delete_seller_review():
+    assert request.method == "POST"
+
+    argument = json.loads(request.data.decode("utf-8"))
+    for item in ['user', "item"]:
+        assert item in argument, item + " not in argument: " + str(argument)
+
+    assert argument['user'] == current_user.id, "Provided user is not current user"
+
+    q = SellerRating.query. \
+        filter(SellerRating.rated_id == argument['item'], SellerRating.rater_id == argument['user']). \
+        delete()
+    assert q != 0, "0 rating deleted"
+
+    db.session.commit()
+    return {"success": True}
