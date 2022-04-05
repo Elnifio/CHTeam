@@ -922,11 +922,7 @@ def public_profile_page(id):
 def edit_user_page():
     user = User.query.get_or_404(current_user.id)
     form = EditUserForm()
-    form.username.default = user.name
-    form.email.default = user.email
-    form.address.default = user.address
-    form.balance_change.default = 0.0
-    form.process()
+    
     if request.method == 'POST':
         if form.validate_on_submit():
             # process 
@@ -947,6 +943,11 @@ def edit_user_page():
         if form.errors != {}:
             for err_msg in form.errors.values():
                 flash(f'Error: {err_msg}', category='danger')
+    form.username.default = user.name
+    form.email.default = user.email
+    form.address.default = user.address
+    form.balance_change.default = 0.0
+    form.process()
     return render_template('edit_info.html', user=user, form = form)
 
     # TODO: Find if the user can comment the seller
