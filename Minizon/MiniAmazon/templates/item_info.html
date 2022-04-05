@@ -70,6 +70,7 @@
                 <th scope="col"><div class="ml-4">Seller</div></th>
                 <th scope="col">Price</th>
                 <th scope="col">Quantity</th>
+                <th scope="col">Rating</th>
                 <th scope="col">Options</th>
             </tr>
             </thead>
@@ -79,12 +80,14 @@
                 {% for inv in user_inventory %}
                     <tr>
                         {#            <td>{{ item.image }}</td>#}
-                        <td><a href=""><h5 class="mt-4 ml-4" href="">{{ inv.seller.name }}</h5></a></td>
+                        <td><a href= "{{ url_for('public_profile_page', id=inv.seller_id) }}"><h5 class="mt-4 ml-4">{{ inv.seller.name }}</h5></a></td>
                         <td><h5 class="mt-4">{{ inv.price }}$</h5></td>
                         <td><h5 class="mt-4">{{ inv.quantity }}</h5></td>
+                        <td><h5 class="mt-4">{{ inv.seller.rating }}</h5></td>
+
                         <td>
                             <div class="mt-3">
-                                <a class="btn btn-outline btn-info mt-2 mb-2" href="">Add to Cart</a>
+                                <a class="btn btn-outline btn-info mt-2 mb-2" href="{{ url_for('cart_add_page', item_id=inv.item_id, user_id=inv.seller_id) }}">Add to Cart</a>
                             </div>
                         </td>
                     </tr>

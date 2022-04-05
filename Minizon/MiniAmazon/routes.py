@@ -1,7 +1,9 @@
 from MiniAmazon import app, db, ALLOWED_EXTENSIONS
 from flask import render_template, redirect, url_for, flash, request
-from MiniAmazon.models import Item, User, Category, ItemImage, Inventory, ItemRating, ItemUpvote
-from MiniAmazon.forms import RegisterForm, LoginForm, ItemForm, MarketForm, SellForm
+from MiniAmazon.models import Item, User, Category, ItemImage, Inventory, ItemRating, ItemUpvote, Cart, Order, \
+    Order_item
+from MiniAmazon.forms import RegisterForm, LoginForm, ItemForm, MarketForm, SellForm, AddToCartForm, EditCartForm, \
+    ItemEditForm
 from flask_login import login_user, login_required, logout_user, current_user
 from werkzeug.utils import secure_filename
 from sqlalchemy import func, case
@@ -82,16 +84,18 @@ def register_page():
         user_to_register = User(name=form.username.data,
                                 email=form.email.data,
                                 address=form.address.data,
-                                password_plain=form.password1.data
+                                password_plain=form.password1.data,
+                                balance=form.balance.data
                                 )
+        if User.query.filter_by(email=form.email.data).first():
+            flash(f'Login Failed: email already exists.', category='danger')
+            return redirect(url_for('register_page'))
         db.session.add(user_to_register)
         db.session.commit()
 
         login_user(user_to_register)
         flash(f'Login Success! Welcome, {user_to_register.name}!', category='success')
         return redirect(url_for('home_page'))
-    # TODO: catch error from sqlaclchemy
-    # TODO: balance
     if form.errors != {}:
         for err_msg in form.errors.values():
             flash(f'Error: {err_msg}', category='danger')
@@ -108,11 +112,12 @@ def login_page():
         ):
             login_user(attempted_user)
             flash(f'Login Success! Welcome, {attempted_user.name}!', category='success')
-            # TODO: page after login
             return redirect(url_for('home_page'))
         else:
-            flash('Email and password not match! Please try again.', category='danger')
-    # TODO: add on: email not found, go to register
+            if User.query.filter_by(email=form.email.data).first() is None:
+                flash('Email not exists, please register first.', category='danger')
+            else:
+                flash('Email and password not match. Please try again.', category='danger')
     return render_template('login.html', form=form)
 
 
@@ -235,8 +240,8 @@ def delete_review():
 @login_required
 def item_info_page(id):
     item = Item.query.get_or_404(id)
-    user_inventory = item.user_inventory.all()
-    print(type(user_inventory))
+    user_inventory = item.user_inventory.filter(Inventory.quantity>0).all()
+    # print(type(user_inventory))
     # cursor.execute("select avg(rate) from ItemRating where item_id == ?", (id))
     average = ItemRating.query.\
         with_entities(func.avg(ItemRating.rate).label('average')).\
@@ -310,7 +315,7 @@ def item_info_page(id):
         actuals[dist[0]] = dist[1]
 
     current_review = ItemRating.query.filter(ItemRating.item_id == id, ItemRating.rater_id == current_user.id).all()
-    print(ItemRating.query.filter(ItemRating.item_id == id).all())
+    # print(ItemRating.query.filter(ItemRating.item_id == id).all())
 
     return render_template('item_info.html', item=item,
                            reviews=ratings,
@@ -394,8 +399,8 @@ def item_sell_page(id):
             # add item to suer inventory
             item_inventory = current_user.item_inventory
             current_user.item_inventory.append(Inventory(item=item,
-                                                      price=form.price.data,
-                                                      quantity=form.quantity.data))
+                                                        price=form.price.data,
+                                                        quantity=form.quantity.data))
             db.session.add(current_user)
             db.session.commit()
             flash(f'Item Sell Success! Your {form.quantity.data} X {item.name} are on market now.',
@@ -411,10 +416,92 @@ def item_sell_page(id):
 @login_required
 def item_edit_page(id):
     item = Item.query.get_or_404(id)
+    form = ItemEditForm()
+    categories = Category.query.order_by('name').all()
+    choices = []
+    # set catgory choices and select current category by default
+
+    for c in categories:
+        choices.append((c.id, c.name))
+    form.category.choices = choices
     if item.creator_id != current_user.id:
         flash(f'Sorry, you cannot edit this product since you are not the creator of {item.name}.', category='danger')
         return redirect(url_for('item_info_page', id=id))
-    return render_template('item_edit.html', item=item)
+    if request.method == 'POST':
+        print(form.item_name.data)
+        item.name = form.item_name.data
+        item.description = form.description.data
+        item.category_id = form.category.data
+        uploaded_files = request.files.getlist("images")
+
+        if uploaded_files[0].filename:
+            for file in uploaded_files:
+                if allowed_file(file.filename):
+                    picname = str(uuid.uuid1()) + "_" + secure_filename(file.filename)
+                    item.images.append(ItemImage(name=picname))
+                    file.save(os.path.join(app.config['UPLOAD_FOLDER'], picname))
+                else:
+                    flash(f'Item Edit failed. {file.filename} is not allowed, please try again.',
+                          category='danger')
+                    return redirect(url_for('item_edit_page', id=id))
+        db.session.add(item)
+        db.session.commit()
+        flash(f'Item edit succeed.', category='success')
+    form.category.default = item.category_id
+    form.item_name.default = item.name
+    form.description.default = item.description
+    form.process()
+    return render_template('item_edit.html', item=item, form=form)
+
+
+@app.route('/remove_image/<int:image_id>')
+@login_required
+def remove_image(image_id):
+    image = ItemImage.query.get_or_404(image_id)
+    item_images = Item.query.get_or_404(image.item_id).images
+    item_id = image.item_id
+    if image is None:
+        flash(f'Image not exists.')
+    elif len(item_images) <= 1:
+        flash(f'Item must have at least one image.', category='danger')
+    else:
+        db.session.delete(image)
+        db.session.commit()
+        flash(f'Image remove succeed.', category='success')
+    return redirect(url_for('item_edit_page', id=item_id))
+
+
+@app.route('/cart_add/<int:item_id>/<int:user_id>', methods=['GET', 'POST'])
+@login_required
+def cart_add_page(item_id, user_id):
+    form = AddToCartForm()
+    inv = Inventory.query.filter_by(item_id=item_id, seller_id=user_id).first()
+    if request.method == 'POST':
+        if form.validate_on_submit():
+            item = Item.query.get_or_404(item_id)
+            # check if this item is in current user's inventory
+            for i in current_user.item_inventory:
+                if i.item_id == item_id and i.seller_id == current_user.id:
+                    flash(f'Add to cart failed. {item.name} is already in your inventory.', category='danger')
+                    return redirect(url_for('cart_add_page', item_id=item_id, user_id=user_id))
+            # check if the item from the same seller is in current user's cart
+            items_cart = current_user.item_cart.all()
+            for i in items_cart:
+                if i.item_id == item_id and i.seller_id == user_id:
+                    flash(f'Add to cart failed. {item.name} from {inv.seller.name} is already in your cart',
+                          category='danger')
+                    return redirect(url_for('cart_add_page', item_id=item_id, user_id=user_id))
+            current_user.item_cart.append(Cart(
+                    item=item,
+                    seller_id=inv.seller_id,
+                    quantity=form.quantity.data,
+                    price=inv.price
+                ))
+            db.session.add(current_user)
+            db.session.commit()
+            flash(f'Add to cart success. {form.quantity.data} X {item.name} added to your cart.', category='success')
+            return redirect(url_for('item_info_page', id=item_id))
+    return render_template('cart_add.html', form=form, price=inv.price, name=inv.item.name)
 
 
 @app.route('/inventory')
@@ -438,7 +525,93 @@ def buy_history_page():
 @app.route('/cart')
 @login_required
 def cart_page():
-    return render_template('cart.html')
+    item_cart = current_user.item_cart.order_by(Cart.ts).all()
+    total = current_user.item_cart.with_entities(
+        db.func.sum(Cart.price * Cart.quantity)
+    ).first()[0]
+    return render_template('cart.html', item_cart=item_cart, total=total)
+
+
+@app.route('/remove_cart/<int:item_id>/<int:seller_id>')
+@login_required
+def remove_cart(item_id, seller_id):
+    item_cart = Cart.query.filter_by(item_id=item_id, seller_id=seller_id, buyer_id=current_user.id).first()
+    # print(item_cart)
+    if item_cart:
+        db.session.delete(item_cart)
+        flash(f'Remove from cart Success. {item_cart.item.name} is removed from your cart.', category='success')
+        db.session.commit()
+        # flash(f'Remove from cart Success. {item_cart.item.name} is removed from your cart.', category='success')
+    else:
+        flash(f'Remove from cart failed. You cannot remove this product from your cart', category='danger')
+    return redirect(url_for('cart_page'))
+
+
+@app.route('/cart_edit/<int:item_id>/<int:seller_id>', methods=['GET', 'POST'])
+@login_required
+def cart_edit_page(item_id, seller_id):
+    form = EditCartForm()
+    item_cart = Cart.query.filter_by(item_id=item_id, seller_id=seller_id, buyer_id=current_user.id).first()
+    if request.method == 'POST':
+        if form.validate_on_submit():
+            if item_cart is None:
+                flash(f'Cart edit failed. You cannot edit this item.', category='danger')
+                return redirect(url_for('cart_page'))
+            item_cart.quantity = form.quantity.data
+            db.session.add(item_cart)
+            db.session.commit()
+            flash(f'Cart Edit success. You have {item_cart.quantity} X {item_cart.item.name} in your cart now.',
+                  category='success')
+        if form.errors:
+            for err_msg in form.errors.values():
+                flash(f'Cart edit failed. {err_msg}', category='danger')
+    return render_template('cart_edit.html', item_cart=item_cart, form=form)
+
+
+@app.route('/checkout')
+@login_required
+def checkout():
+    if current_user.item_cart.count() == 0:
+        flash(f'Checkout failed. No items found in your cart.', category='danger')
+    else:
+        total = current_user.item_cart.with_entities(
+            db.func.sum(Cart.price * Cart.quantity)
+        ).first()[0]
+        if current_user.balance < total:
+            flash(f'Checkout failed. You don\' have enough balance in your account.', category='danger')
+            return redirect(url_for('cart_page'))
+
+        order = Order(address=current_user.address, total_price=total, status="NA", buyer_id=current_user.id)
+        db.session.add(order)
+        items_cart = current_user.item_cart.all()
+        invs = []
+        for item_cart in items_cart:
+            # check seller has enough stock
+            inv = item_cart.seller.\
+                item_inventory.filter_by(item_id=item_cart.item_id).first()
+            if inv.quantity < item_cart.quantity:
+                flash(f'Checkout failed. Seller {item_cart.seller.name} doesn\'t have'
+                      f'{item_cart.quantity} X {item_cart.item.name} in inventory.', category='danger')
+                return redirect(url_for('cart_page'))
+            inv.quantity = inv.quantity - item_cart.quantity
+            invs.append(inv)
+        for i in range(len(invs)):
+            inv = invs[i]
+            cart = items_cart[i]
+            order.order_items.append(Order_item(item_id=cart.item_id,
+                                                seller_id=cart.seller_id,
+                                                quantity=cart.quantity,
+                                                price=cart.price,
+                                                fulfill="NA"))
+            db.session.add(inv)
+            db.session.delete(cart)
+        current_user.balance = current_user.balance - total
+        db.session.add(order)
+        db.session.add(current_user)
+        db.session.commit()
+        flash(f'Chekout success!', category='success')
+
+    return redirect(url_for('cart_page'))
 
 
 @app.errorhandler(404)
@@ -449,7 +622,7 @@ def page_not_found(e):
 
 @app.route('/public_profile/<int:id>')
 @login_required
-def public_profile__page(id):
+def public_profile_page(id):
     user = User.query.get_or_404(id)
     return render_template('public_profile.html', user=user)
 

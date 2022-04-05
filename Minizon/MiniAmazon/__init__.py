@@ -7,7 +7,7 @@ app = Flask(__name__)
 # remove SQLALCHEMY_TRACK_MODIFICATIONS overhead warning
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # show sql expression
-app.config['SQLALCHEMY_ECHO'] = True
+# app.config['SQLALCHEMY_ECHO'] = True
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 

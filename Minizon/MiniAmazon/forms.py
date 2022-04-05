@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SubmitField, FileField, MultipleFileField
+from wtforms import StringField, PasswordField, SubmitField, MultipleFileField
 from wtforms import SelectField, TextAreaField, IntegerField, DecimalField
 from wtforms.validators import Length, Email, EqualTo, DataRequired, NumberRange, Regexp
 from MiniAmazon.models import Category
@@ -15,7 +15,8 @@ class RegisterForm(FlaskForm):
     [Length(min=2, max=50), DataRequired(), Regexp(regex=regex, message="Username"+letter_constraint)])
     email = StringField(label='Email Address:', validators=[Email(), DataRequired()])
     address = StringField(label='Delivery Address:', validators=[Length(max=100), DataRequired(),
-                                                    Regexp(regex, message="Address"+letter_constraint)])
+                                                    Regexp(regex2, message="Address"+letter_constraint+", space.")])
+    balance = DecimalField(places=2, label="Balance", validators=[NumberRange(min=0.0)])
     password1 = PasswordField(label='Password:', validators=[Length(min=6, max=60), DataRequired(),
                                                     Regexp(regex, message="Password"+letter_constraint)])
     password2 = PasswordField(label='Confirm Password:', validators=[EqualTo('password1'), DataRequired()])
@@ -31,7 +32,7 @@ class LoginForm(FlaskForm):
 
 class ItemForm(FlaskForm):
     item_name = StringField(label='Name', validators=[DataRequired(),
-                                                      Regexp(regex2, message="Item name"+letter_constraint+", space")])
+                                                      Regexp(regex2, message="Item name"+letter_constraint+", space.")])
     images = MultipleFileField(label='Images', validators=[DataRequired()])
     category = SelectField(label='Category')
     description = TextAreaField(label="Description",validators=[DataRequired(), Regexp(regex2, message="Description"+letter_constraint+", space")])
@@ -53,4 +54,22 @@ class SellForm(FlaskForm):
     price = DecimalField(places=2, label='Price', validators=[NumberRange(min=0.0)])
     quantity = IntegerField(label='Quantity', validators=[NumberRange(min=1)])
     submit = SubmitField(label='Sell')
-    
+
+
+class AddToCartForm(FlaskForm):
+    quantity = IntegerField(label='Quantity', validators=[NumberRange(min=1)])
+    submit = SubmitField(label='Add')
+
+
+class EditCartForm(FlaskForm):
+    quantity = IntegerField(label='Quantity', validators=[NumberRange(min=1)])
+    submit = SubmitField(label='Submit')
+
+
+class ItemEditForm(FlaskForm):
+    item_name = StringField(label='Name', validators=[DataRequired(),
+                                                      Regexp(regex2, message="Item name"+letter_constraint+", space.")])
+    images = MultipleFileField(label='Images')
+    category = SelectField(label='Category')
+    description = TextAreaField(label="Description",validators=[DataRequired(), Regexp(regex2, message="Description"+letter_constraint+", space")])
+    submit = SubmitField(label='Edit Item')

@@ -12,7 +12,7 @@ class Inventory(db.Model):
     quantity = db.Column(db.Integer, nullable=False)
     price = db.Column(db.Float, nullable=False)
 
-    seller = db.relationship('User', backref='item_inventory')
+    seller = db.relationship('User', backref=db.backref('item_inventory', lazy='dynamic'))
     item = db.relationship('Item', backref=db.backref('user_inventory', lazy='dynamic'))
 
 
@@ -44,7 +44,7 @@ class Item(db.Model):
     def rating(self):
         count = self.rates.count()
         total_rating = self.rates.with_entities(db.func.sum(ItemRating.rate)).first()[0]
-        print(self.id, " ", total_rating)
+        # print(self.id, " ", total_rating)
         return round(total_rating/self.rates.count(), 1) if count > 0 else 0.0
 
     @rating.expression
@@ -82,12 +82,14 @@ class Category(db.Model):
 class Cart(db.Model):
     item_id = db.Column(db.Integer, db.ForeignKey('item.id'), primary_key=True)
     seller_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
+    buyer_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
     quantity = db.Column(db.Integer, nullable=False)
     price = db.Column(db.Float, nullable=False)
     ts = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
-    seller = db.relationship('User', backref='item_cart')
-    item = db.relationship('Item', backref='user_cart')
+    buyer = db.relationship('User', backref=db.backref('item_cart', lazy='dynamic'), foreign_keys=[buyer_id])
+    item = db.relationship('Item')
+    seller = db.relationship('User', foreign_keys=[seller_id])
 
 
 @login_manager.user_loader
@@ -105,7 +107,6 @@ class User(db.Model, UserMixin):
 
     # add relationships below
     items_create = db.relationship('Item', backref='creator', lazy='dynamic')
-    items_cart = db.relationship('Item', secondary='cart', lazy=True)
 
     receivers = db.relationship('Conversation', backref='sender',
                                 lazy=True, foreign_keys="Conversation.sender_id")
@@ -116,13 +117,13 @@ class User(db.Model, UserMixin):
     item_votes = db.relationship("ItemUpvote", backref="voter", lazy=True)
 
     seller_rates = db.relationship("SellerRating", backref="seller",
-                                   lazy=True, foreign_keys="SellerRating.rater_id")
+                                   lazy='dynamic', foreign_keys="SellerRating.rater_id")
     received_rates = db.relationship("SellerRating", backref="rater",
-                                     lazy=True, foreign_keys="SellerRating.seller_id")
+                                     lazy='dynamic', foreign_keys="SellerRating.seller_id")
     seller_votes = db.relationship("SellerUpvote", backref="voter", lazy=True)
 
     seller_inventory = db.relationship('Item', secondary='inventory',
-                                       lazy=True, backref=db.backref('sellers', lazy='dynamic'), viewonly=True)
+                                       lazy='dynamic', backref=db.backref('sellers', lazy='dynamic'), viewonly=True)
 
     @property
     def password_plain(self):
@@ -131,6 +132,20 @@ class User(db.Model, UserMixin):
     @password_plain.setter
     def password_plain(self, plaintext):
         self.password = bcrypt.generate_password_hash(plaintext).decode('utf-8')
+
+    @hybrid_property
+    def rating(self):
+        # print(self.received_rates.count())
+        avg = self.received_rates.with_entities(db.func.avg(SellerRating.rate)).first()[0]
+        return 0.0 if avg is None else round(avg, 1)
+
+    @rating.expression
+    def rating(cls):
+        return(
+            select([db.func.coalesce(db.func.avg(SellerRating.rate), 0)]).
+            where(cls.id == SellerRating.seller_id).
+            label('rating')
+        )
 
     def check_password_correct(self, plaintext):
         return bcrypt.check_password_hash(self.password, plaintext)
@@ -210,8 +225,11 @@ class Order(db.Model):
 
     buyer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
+    buyer = db.relationship('User', backref=db.backref('buyer_order', lazy='dynamic'))
+
     def __repr__(self):
         return f'<Order {self.id}>'
+
 
 class Order_item(db.Model):
     order_id = db.Column(db.Integer, db.ForeignKey('order.id'), primary_key=True)
@@ -222,7 +240,7 @@ class Order_item(db.Model):
     fulfill = db.Column(db.String, nullable=False)
 
     seller = db.relationship('User', backref='sell_order')
-    order = db.relationship('Order', backref='buy_order')
+    order = db.relationship('Order', backref='order_items')
     item = db.relationship('Item', backref='order_item')
 
 

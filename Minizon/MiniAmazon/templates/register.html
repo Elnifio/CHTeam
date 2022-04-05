@@ -21,6 +21,10 @@
                 {{ form.email(class="form-control", placeholder="Email Address") }}
                 </div>
                 <div class="mt-2">
+                    {{ form.balance.label() }}
+                    {{ form.balance(class="form-control") }}
+                </div>
+                <div class="mt-2">
                 {{ form.address.label() }}
                 {{ form.address(class="form-control", placeholder="Delivery Address") }}
                 </div>
