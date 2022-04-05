@@ -3,7 +3,7 @@ from flask import render_template, redirect, url_for, flash, request
 from MiniAmazon.models import Item, User, Category, ItemImage, Inventory, ItemRating, ItemUpvote, Conversation, \
     SellerRating, SellerUpvote, Order, Order_item, Cart, Order, Order_item
 from MiniAmazon.forms import RegisterForm, LoginForm, ItemForm, MarketForm, SellForm, AddToCartForm, EditCartForm, ItemEditForm, \
-    SellForm, EditUserForm, InventoryForm, InventoryEditForm, SellHistoryForm
+    SellForm, EditUserForm, InventoryForm, InventoryEditForm, SellHistoryForm, BuyHistoryForm
 from flask_login import login_user, login_required, logout_user, current_user
 from werkzeug.utils import secure_filename
 from sqlalchemy import func, case, desc, asc
