@@ -49,6 +49,9 @@ class MarketForm(FlaskForm):
     order_by = SelectField(label='Order By', choices=['Asc', 'Desc'])
     submit = SubmitField(label='Submit')
 
+class InventoryForm(FlaskForm):
+    search = StringField('')
+    submit = SubmitField(label='Submit')
 
 class SellForm(FlaskForm):
     price = DecimalField(places=2, label='Price', validators=[NumberRange(min=0.0)])
@@ -92,3 +95,13 @@ class EditUserForm(FlaskForm):
     password2 = PasswordField(label='Confirm Password:', validators=[EqualTo('password1'), DataRequired()])
     balance_change = DecimalField(places=2, label='Balance Change', validators=[NumberRange(min=-1000.0, max=1000.0)])
     submit = SubmitField(label='Edit Account')
+    
+class InventoryEditForm(FlaskForm):
+    price = DecimalField(places=2, label='Price', validators=[NumberRange(min=0.0)])
+    quantity = IntegerField(label='Quantity', validators=[NumberRange(min=0)])
+    submit = SubmitField(label='Edit')
+
+class SellHistoryForm(FlaskForm):
+    sort_by = SelectField(label='Sort By', choices=['Date', 'Price'])
+    order_by = SelectField(label='Order By', choices=['Desc', 'Asc'])
+    submit = SubmitField(label='Submit')

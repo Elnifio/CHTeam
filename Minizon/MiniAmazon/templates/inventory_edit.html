@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+
+{% block title %}
+    Inventory Edit
+{% endblock %}
+
+{% block content %}
+    <body class="text-center">
+    <div class="container">
+        <form method="POST" class="form-register" style="color:black" enctype="multipart/form-data">
+            <!-- protect against CSRF -->
+            {{ form.hidden_tag() }}
+            <h1 class="h3 mb-3 font-weight-bold">
+                Edit: {{ item.name }}
+            </h1>
+            <br>
+            <div class="mt-2">
+                {{ form.price.label(class="form-label") }}
+                {{ form.price(class="form-control") }}
+            </div>
+            <div class="mt-2">
+                {{ form.quantity.label(class="form-label") }}
+                {{ form.quantity(class="form-control") }}
+            </div>
+
+            <br>
+            {{ form.submit(class="btn btn-lg btn-block btn-primary") }}
+        </form>
+    </div>
+    </body>
+{% endblock %}
