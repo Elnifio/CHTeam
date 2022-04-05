@@ -89,7 +89,7 @@ class EditUserForm(FlaskForm):
     [Length(min=2, max=50), DataRequired(), Regexp(regex=regex, message="Username"+letter_constraint)])
     email = StringField(label='Email Address:', validators=[Email(), DataRequired()])
     address = StringField(label='Delivery Address:', validators=[Length(max=100), DataRequired(),
-                                                    Regexp(regex, message="Address"+letter_constraint)])
+                                                    Regexp(regex2, message="Address"+letter_constraint+" ,space")])
     password1 = PasswordField(label='Password:', validators=[Length(min=6, max=60), DataRequired(),
                                                     Regexp(regex, message="Password"+letter_constraint)])
     password2 = PasswordField(label='Confirm Password:', validators=[EqualTo('password1'), DataRequired()])

@@ -1,4 +1,4 @@
-from MiniAmazon import app, db, ALLOWED_EXTENSIONS
+from MiniAmazon import app, db, ALLOWED_EXTENSIONS, bcrypt
 from flask import render_template, redirect, url_for, flash, request
 from MiniAmazon.models import Item, User, Category, ItemImage, Inventory, ItemRating, ItemUpvote, Conversation, \
     SellerRating, SellerUpvote, Order, Order_item, Cart, Order, Order_item
@@ -896,8 +896,26 @@ def page_not_found(e):
 @login_required
 def public_profile_page(id):
     user = User.query.get_or_404(id)
-    review = user.join(SellerRating, SellerRating.seller_id == User.id).all()
-    return render_template('public_profile.html', user = user, review = review)
+
+    # TODO: Find if the user can comment the seller
+    # commentable = Order.query.filter(Order.buyer_id == current_user.id).\
+    #     join(Order_item, Order_item.order_id == Order.id).\
+    #     filter(Order_item.seller_id == id).all()
+    # commentable = len(commentable) > 0
+    commentable = True
+
+    average, ratings, actuals, current_review = abstract_info(SellerRating, SellerUpvote, id, current_user.id)
+
+    return render_template('public_profile.html', user=user,
+                           reviews=ratings,
+                           average=round(average, 1) if average is not None else average,
+                           distribution=actuals, num_reviews=len(ratings),
+                           boolean_mask=to_boolean_mask,
+                           current=current_user,
+                           user_review=current_review[0] if len(current_review) > 0 else None,
+                           has_user_review=len(current_review) > 0,
+                           reviewable=commentable,
+                            )
 
 @app.route('/edit_info', methods=['GET', 'POST'])
 @login_required
@@ -911,12 +929,14 @@ def edit_user_page():
             user.name = form.username.data
             user.email = form.email.data
             user.address = form.address.data
-            user.password = form.password1.data
+            # user.password = form.password1.data
+            user.password_plain = form.password1.data
             if form.balance_change.data + Decimal(user.balance) < 0:
                 user.balance = 0
             else:
                 user.balance = form.balance_change.data + Decimal(user.balance)
             db.session.commit()
+            flash(f'User edit succeed.', category='success')
         if form.errors != {}:
             for err_msg in form.errors.values():
                 flash(f'Error: {err_msg}', category='danger')
