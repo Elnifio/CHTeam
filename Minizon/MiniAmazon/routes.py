@@ -2,13 +2,15 @@ from MiniAmazon import app, db, ALLOWED_EXTENSIONS
 from flask import render_template, redirect, url_for, flash, request
 from MiniAmazon.models import Item, User, Category, ItemImage, Inventory, ItemRating, ItemUpvote, Conversation, \
     SellerRating, SellerUpvote, Order, Order_item, Cart, Order
-from MiniAmazon.forms import RegisterForm, LoginForm, ItemForm, MarketForm, SellForm, AddToCartForm, EditCartForm, ItemEditForm
+from MiniAmazon.forms import RegisterForm, LoginForm, ItemForm, MarketForm, SellForm, AddToCartForm, EditCartForm, ItemEditForm, \
+    SellForm, EditUserForm
 from flask_login import login_user, login_required, logout_user, current_user
 from werkzeug.utils import secure_filename
 from sqlalchemy import func, case, desc
 import json
 import uuid as uuid
 import os
+from decimal import *
 
 
 # ----------------
@@ -671,10 +673,24 @@ def sell_history_page():
     return render_template('sell_history.html')
 
 
-@app.route('/buy_history')
+@app.route('/buy_history', methods=['GET', 'POST'])
 @login_required
 def buy_history_page():
-    return render_template('buy_history.html')
+    buy_order = None
+    query = None
+    form = BuyHistoryForm()
+
+    if request.method == 'POST':
+        if form.validate_on_submit():
+            # process search
+            query = Order.query.filter(Order.buyer_id == current_user.id)
+            # process sort and order
+            buy_order = query.join(Order_item, Order_item.order_id == Order.id).order_by(Order.Date.desc()).all()
+        if form.errors != {}:
+            for err_msg in form.errors.values():
+                flash(f'Error: {err_msg}', category='danger')
+
+    return render_template('buy_history.html', buy_order = buy_order, form = form)
 
 
 @app.route('/cart')
@@ -784,6 +800,32 @@ def page_not_found(e):
 @login_required
 def public_profile_page(id):
     user = User.query.get_or_404(id)
+    review = user.join(SellerRating, SellerRating.seller_id == User.id).all()
+    return render_template('public_profile.html', user = user, review = review)
+
+@app.route('/edit_info', methods=['GET', 'POST'])
+@login_required
+def edit_user_page():
+    user = User.query.get_or_404(current_user.id)
+    form = EditUserForm()
+
+    if request.method == 'POST':
+        if form.validate_on_submit():
+            # process 
+            user.name = form.username.data
+            user.email = form.email.data
+            user.address = form.address.data
+            user.password = form.password1.data
+            if form.balance_change.data + Decimal(user.balance) < 0:
+                user.balance = 0
+            else:
+                user.balance = form.balance_change.data + Decimal(user.balance)
+            db.session.commit()
+        if form.errors != {}:
+            for err_msg in form.errors.values():
+                flash(f'Error: {err_msg}', category='danger')
+
+    return render_template('edit_info.html', user=user, form = form)
 
     # TODO: Find if the user can comment the seller
     # commentable = Order.query.filter(Order.buyer_id == current_user.id).\
