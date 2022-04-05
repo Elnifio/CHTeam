@@ -922,10 +922,17 @@ def public_profile_page(id):
 def edit_user_page():
     user = User.query.get_or_404(current_user.id)
     form = EditUserForm()
-
+    form.username.default = user.name
+    form.email.default = user.email
+    form.address.default = user.address
+    form.balance_change.default = 0.0
+    form.process()
     if request.method == 'POST':
         if form.validate_on_submit():
             # process 
+            if form.email.data != user.email and User.query.filter_by(email=form.email.data).first():
+                flash(f'Login Failed: email already exists.', category='danger')
+                return redirect(url_for('edit_user_page'))
             user.name = form.username.data
             user.email = form.email.data
             user.address = form.address.data
@@ -940,7 +947,6 @@ def edit_user_page():
         if form.errors != {}:
             for err_msg in form.errors.values():
                 flash(f'Error: {err_msg}', category='danger')
-
     return render_template('edit_info.html', user=user, form = form)
 
     # TODO: Find if the user can comment the seller
