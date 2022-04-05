@@ -762,7 +762,7 @@ def fulfill(order_id,item_id):
     db.session.commit()
     return redirect(url_for('sell_history_page'))
     
-@app.route('/buy_history')
+@app.route('/buy_history',methods=['GET', 'POST'])
 @login_required
 def buy_history_page():
     buy_order = None
