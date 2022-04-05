@@ -51,7 +51,7 @@ class Item(db.Model):
     def rating(cls):
         return(
             select([db.func.coalesce(db.func.avg(ItemRating.rate), 0)]).
-            where(cls.id == ItemRating.item_id).
+            where(cls.id == ItemRating.rated_id).
             label('rating')
         )
 
@@ -119,7 +119,7 @@ class User(db.Model, UserMixin):
     seller_rates = db.relationship("SellerRating", backref="seller",
                                    lazy='dynamic', foreign_keys="SellerRating.rater_id")
     received_rates = db.relationship("SellerRating", backref="rater",
-                                     lazy='dynamic', foreign_keys="SellerRating.seller_id")
+                                     lazy='dynamic', foreign_keys="SellerRating.rated_id")
     seller_votes = db.relationship("SellerUpvote", backref="voter", lazy=True)
 
     seller_inventory = db.relationship('Item', secondary='inventory',
@@ -167,7 +167,7 @@ class Conversation(db.Model):
 
 class ItemRating(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    item_id = db.Column(db.Integer, db.ForeignKey('item.id'), nullable=False)
+    rated_id = db.Column(db.Integer, db.ForeignKey('item.id'), nullable=False)
     rater_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     comment = db.Column(db.String(1000), nullable=False, default="")
     rate = db.Column(db.Integer, nullable=False, default=5)
@@ -192,7 +192,7 @@ class ItemUpvote(db.Model):
 
 class SellerRating(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    seller_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    rated_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     rater_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     comment = db.Column(db.String(1000), nullable=False, default="")
     rate = db.Column(db.Integer, nullable=False, default=5)

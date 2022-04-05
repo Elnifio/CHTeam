@@ -1,15 +1,15 @@
 from MiniAmazon import app, db, ALLOWED_EXTENSIONS
 from flask import render_template, redirect, url_for, flash, request
-from MiniAmazon.models import Item, User, Category, ItemImage, Inventory, ItemRating, ItemUpvote, Cart, Order, \
-    Order_item
-from MiniAmazon.forms import RegisterForm, LoginForm, ItemForm, MarketForm, SellForm, AddToCartForm, EditCartForm, \
-    ItemEditForm
+from MiniAmazon.models import Item, User, Category, ItemImage, Inventory, ItemRating, ItemUpvote, Conversation, \
+    SellerRating, SellerUpvote, Order, Order_item, Cart, Order
+from MiniAmazon.forms import RegisterForm, LoginForm, ItemForm, MarketForm, SellForm, AddToCartForm, EditCartForm, ItemEditForm
 from flask_login import login_user, login_required, logout_user, current_user
 from werkzeug.utils import secure_filename
-from sqlalchemy import func, case
+from sqlalchemy import func, case, desc
 import json
 import uuid as uuid
 import os
+
 
 # ----------------
 # HELPER METHODS
@@ -23,6 +23,169 @@ def to_boolean_mask(rate):
     nstar = min(nstar, 5)
     nstar = max(nstar, 0)
     return [True] * nstar + [False] * (5 - nstar)
+
+
+def format_time(t):
+    return f"{t.month}/{t.day}/{t.year} {t.hour}:{t.minute}"
+
+# ----------------
+# ABSTRACTION FUNCTIONS OVER INTERFACE Rating & Upvote
+# ----------------
+def make_rating_query(rating, upvote, rated_oi, rater_oi):
+    q = rating.query.filter(rating.rated_id == rated_oi). \
+        join(User, User.id == rating.rater_id). \
+        outerjoin(upvote, rating.id == upvote.rating_id). \
+        group_by(
+            rating.id, User.name, rating.rated_id,
+            rating.comment, rating.rate, rating.ts). \
+        with_entities(
+            rating.id.label("rating_id"),
+            User.name.label("name"),
+            rating.rated_id.label("rated_id"),
+            rating.comment.label("comment"),
+            rating.rate.label("rate"),
+            rating.ts.label("ts"),
+            func.count(upvote.voter_id).label("num_upvotes"),
+            func.max(
+                case([(upvote.voter_id == rater_oi, 1)], else_=0)
+            ).label("is_voted")
+        )
+
+    return q
+
+
+def make_rating_average_distribution(rating, rated_oi):
+    return rating.query.\
+                with_entities(func.avg(rating.rate).label("average")).\
+                filter(rating.rated_id == rated_oi).all()[0][0]
+
+
+def make_rating_distribution(rating, rated_oi):
+    result = rating.query.filter(rating.rated_id == rated_oi).\
+                with_entities(rating.rate, func.count(rating.rater_id).label("cnt")).\
+                group_by(rating.rate).all()
+
+    actuals = {x: 0 for x in range(6)}
+    for dist in result:
+        actuals[dist[0]] = dist[1]
+
+    return actuals
+
+
+def execute_delete(rating, rated_oi, rater_oi):
+    q = rating.query.\
+        filter(rating.rated_id == rated_oi, rating.rater_id == rater_oi).\
+        delete()
+    return q
+
+
+def get_current_review(rating, rated_oi, rater_oi):
+    return rating.query.filter(rating.rated_id == rated_oi, rating.rater_id == rater_oi).all()
+
+
+def find_is_voted(upvote, rating, voter):
+    return upvote.query.filter(upvote.rating_id == rating, upvote.voter_id == voter)
+
+
+def query_upvotes(upvote, rating, voter):
+    return upvote.query.filter(upvote.rating_id == rating).\
+            group_by(upvote.rating_id).\
+            with_entities(
+                func.count(upvote.voter_id).label("num_upvotes"),
+                func.max(
+                    case([(upvote.voter_id == voter, 1)], else_=0)
+                ).label("is_voted")
+            ).all()
+
+
+def abstract_info(rating, upvote, rated, rater):
+    average = make_rating_average_distribution(rating, rated)
+
+    ratings = make_rating_query(rating, upvote, rated, rater).all()
+
+    actuals = make_rating_distribution(rating, rated)
+
+    current_review = get_current_review(rating, rated, rater)
+
+    return average, ratings, actuals, current_review
+
+
+def abstract_upvote(req, user, table):
+    assert req.method == "POST"
+
+    argument = json.loads(req.data.decode("utf-8"))
+    assert "user" in argument and "rating" in argument, "Illegal Data provided"
+
+    voter_id = argument['user']
+    assert voter_id == user, "Illegal user detected"
+
+    rating_id = argument['rating']
+    query = find_is_voted(table, rating_id, voter_id)
+    is_voted = len(query.all())
+
+    if is_voted != 0:
+        result = query.delete()
+        assert result != 0, "Number of Item Upvotes in database is inconsistent with is_voted"
+        db.session.commit()
+    else:
+        upvote = table(rating_id=rating_id, voter_id=voter_id)
+        db.session.add(upvote)
+        db.session.commit()
+
+    q = query_upvotes(table, rating_id, current_user.id)
+
+    if len(q) == 0:
+        return {'upvotes': 0, 'voted': False}
+
+    assert len(q) == 1, f"Item Upvote aggregation did not match operation: {str(q)}"
+    return {'upvotes': q[0].num_upvotes, 'voted': q[0].is_voted == 1}
+
+
+def abstract_edit_review(req, user, rating):
+    assert req.method == "POST"
+
+    argument = json.loads(req.data.decode("utf-8"))
+    for item in ['user', "item", 'rate', 'comment']:
+        assert item in argument, item + " not in argument: " + str(argument)
+
+    assert argument['user'] == user, "Provided user is not current user"
+
+    q = get_current_review(rating, argument['item'], argument['user'])
+
+    if len(q) == 0:
+        new_rate = rating(rated_id=argument['item'], rater_id=argument['user'],
+                              comment=argument['comment'], rate=argument['rate'])
+        db.session.add(new_rate)
+        db.session.commit()
+        return {"comment": new_rate.comment}
+    else:
+        roi = q[0]
+        roi.comment = argument['comment']
+        roi.rate = argument['rate']
+        db.session.commit()
+        return {'comment': roi.comment}
+
+
+def abstract_delete_review(req, user, rating):
+    assert req.method == "POST"
+
+    argument = json.loads(req.data.decode("utf-8"))
+    for item in ['user', "item"]:
+        assert item in argument, item + " not in argument: " + str(argument)
+
+    assert argument['user'] == user, "Provided user is not current user"
+
+    q = execute_delete(rating, argument['item'], argument['user'])
+    assert q != 0, "0 rating deleted"
+
+    db.session.commit()
+    return {"success": True}
+
+
+control_message = {
+    "initiated": "INITIATED",
+    "image_header": "image://"
+}
 
 
 @app.route('/')
@@ -129,193 +292,167 @@ def logout_page():
     return render_template('home.html')
 
 
-@app.route("/item_upvote", methods=['POST'])
+# --------------------------------
+#
+# CONVERSATION MODULE
+#
+# --------------------------------
+@app.route("/start_message/<int:id>")
 @login_required
-def item_upvote():
+def start_message(id):
+    # TODO: NOT TESTED FUNCTION
+    sender = current_user.id
+    receiver = id
+    q = Conversation.query.filter(
+        (Conversation.sender_id == sender & Conversation.receiver_id == receiver) |
+        (Conversation.sender_id == receiver & Conversation.receiver_id == sender)
+    )
+
+    if len(q.all()) == 0:
+        msg = Conversation(sender_id=sender, receiver_id=receiver, content=control_message['initiated'])
+        db.session.add(msg)
+        db.session.commit()
+    return redirect(url_for("conversation_page"))
+
+
+@app.route("/receive_message", methods=['POST'])
+@login_required
+def receive_message():
+    assert request.method == "POST", "Request Method invalid"
+    argument = json.loads(request.data.decode("utf-8"))
+    if not ("other" in argument and "content" in argument):
+        return {"status": False}
+    other = argument['other']
+    content = argument['content']
+    message = Conversation(sender_id=current_user.id,
+                           receiver_id=other,
+                           content=content)
+    db.session.add(message)
+    db.session.commit()
+    return {"status": True, "timestamp": format_time(message.ts)}
+
+
+@app.route("/get_conversations", methods=['POST'])
+@login_required
+def conversations():
     if not request.method == "POST":
         flash(f'Error: Invalid Request Method {request.method}', category='danger')
-
-    assert request.method == "POST"
+        return
 
     argument = json.loads(request.data.decode("utf-8"))
-    if not "user" in argument and "rating" in argument:
-        flash(f'Error: Invalid request data format', category='danger')
-    assert "user" in argument and "rating" in argument, "Illegal Data provided"
+    if "other" not in argument:
+        flash(f"Error: Invalid request data format", category='danger')
+        return
 
-    voter_id = argument['user']
-    if not voter_id ==  current_user.id:
-        flash(f"Error: Invalid voter", category="danger")
-    assert voter_id == current_user.id, "Illegal user detected"
+    other = argument['other']
+    q = Conversation.query.filter(
+        (Conversation.content != control_message['initiated']) &
+        (((Conversation.sender_id == current_user.id) & (Conversation.receiver_id == other)) |
+        ((Conversation.receiver_id == current_user.id) & (Conversation.sender_id == other))))
+    q = q.order_by(Conversation.ts)
 
-    rating_id = argument['rating']
-    query = ItemUpvote.query.filter(ItemUpvote.rating_id == rating_id, ItemUpvote.voter_id == voter_id)
-    is_voted = len(query.all())
+    return {
+        "conversation": list(map(
+            lambda x: {
+                "type": "send" if x.sender_id == current_user.id else "receive",
+                "content": x.content,
+                "timestamp": format_time(x.ts)
+            }, q.all()
+        ))
+    }
 
-    if is_voted != 0:
-        result = query.delete()
-        if result != 0:
-            flash("Error: Number of Item Upvotes in database is inconsistent with is_voted")
-        assert result != 0, "Number of Item Upvotes in database is inconsistent with is_voted"
-        db.session.commit()
-    else:
-        upvote = ItemUpvote(rating_id=rating_id, voter_id=voter_id)
-        db.session.add(upvote)
-        db.session.commit()
 
-    q = ItemUpvote.query.filter(ItemUpvote.rating_id == rating_id).\
-        group_by(ItemUpvote.rating_id).\
+@app.route("/get_contacts", methods=['POST'])
+@login_required
+def contacts():
+    if not request.method == "POST":
+        flash(f'Error: Invalid Request Method {request.method}', category='danger')
+        return
+
+    roi = Conversation.query.\
+        filter(
+            (Conversation.sender_id == current_user.id) |
+            (Conversation.receiver_id == current_user.id))
+
+    roi = roi.with_entities(
+            case(
+                [(Conversation.sender_id == current_user.id, Conversation.receiver_id), ],
+                else_=Conversation.sender_id
+            ).label("other_id"),
+            func.max(Conversation.ts).label("ts"),
+        ).group_by(
+            case(
+                [(Conversation.sender_id == current_user.id, Conversation.receiver_id), ],
+                else_=Conversation.sender_id)
+        ).subquery()
+
+    senders = Conversation.query.\
+        join(roi,
+             (roi.c.other_id == Conversation.sender_id) &
+             (roi.c.ts == Conversation.ts)).\
+        filter(Conversation.receiver_id == current_user.id).\
+        join(User, User.id == roi.c.other_id).\
         with_entities(
-            func.count(ItemUpvote.voter_id).label("num_upvotes"),
-            func.max(
-                case([(ItemUpvote.voter_id == current_user.id, 1)], else_=0)
-            ).label("is_voted")
-        ).all()
+            Conversation.ts.label("timestamp"),
+            Conversation.content.label("content"),
+            User.name.label("other"),
+            User.id.label("other_id")
+        )
 
-    if not len(q) == 1:
-        flash("Error: Item Upvote aggregation returned multiple instances")
-    assert len(q) == 1, "Item Upvote aggregation returned multiple instances"
-    return {'upvotes': q[0].num_upvotes, 'voted': q[0].is_voted == 1}
+    receivers = Conversation.query.\
+        join(roi,
+             (roi.c.other_id == Conversation.receiver_id) &
+             (roi.c.ts == Conversation.ts)).\
+        filter(Conversation.sender_id == current_user.id).\
+        join(User, User.id == roi.c.other_id).\
+        with_entities(
+            Conversation.ts.label("timestamp"),
+            Conversation.content.label("content"),
+            User.name.label("other"),
+            User.id.label("other_id")
+        )
+
+    return {
+        "contacts": list(map(
+            lambda x: {
+                "other_id": x.other_id,
+                "other": x.other,
+                "content": x.content,
+                "timestamp": format_time(x.timestamp)
+            },
+            senders.union(receivers).order_by(desc(Conversation.ts)).all()
+        )),
+    }
 
 
-@app.route("/item_review", methods=['POST'])
+@app.route("/conversation")
 @login_required
-def receive_item_review():
-    if not request.method == "POST":
-        flash(f'Error: Invalid Request Method {request.method}', category='danger')
-    assert request.method == "POST"
-
-    argument = json.loads(request.data.decode("utf-8"))
-    for item in ['user', "item", 'rate', 'comment']:
-        if item not in argument:
-            flash('Error: Invalid request data format', category='danger')
-        assert item in argument, item + " not in argument: " + str(argument)
-
-    if not argument['user'] == current_user.id:
-        flash(f"Error: Invalid rater", category="danger")
-    assert argument['user'] == current_user.id, "Provided user is not current user"
-
-    q = ItemRating.query.filter(ItemRating.item_id == argument['item'], ItemRating.rater_id == argument['user']).all()
-
-    if len(q) == 0:
-        new_rate = ItemRating(item_id=argument['item'], rater_id=argument['user'],
-                              comment=argument['comment'], rate=argument['rate'])
-        db.session.add(new_rate)
-        db.session.commit()
-        return {"comment": new_rate.comment}
-    else:
-        roi = q[0]
-        roi.comment = argument['comment']
-        roi.rate = argument['rate']
-        db.session.commit()
-        return {'comment': roi.comment}
+def conversation_page():
+    return render_template("conversation.html", current=current_user.id)
 
 
-@app.route("/delete_item_review", methods=["POST"])
-@login_required
-def delete_review():
-    if not request.method == "POST":
-        flash(f'Error: Invalid Request Method {request.method}', category='danger')
-    assert request.method == "POST"
-
-    argument = json.loads(request.data.decode("utf-8"))
-    for item in ['user', "item"]:
-        if item not in argument:
-            flash('Error: Invalid request data format', category='danger')
-        assert item in argument, item + " not in argument: " + str(argument)
-
-    if not argument['user'] == current_user.id:
-        flash(f"Error: Invalid rater", category="danger")
-    assert argument['user'] == current_user.id, "Provided user is not current user"
-
-    q = ItemRating.query.filter(ItemRating.item_id == argument['item'], ItemRating.rater_id == argument['user']).delete()
-    if q == 0:
-        flash(f"Error: 0 Rating deleted")
-    assert q != 0, "0 rating deleted"
-
-    db.session.commit();
-    return {"success": True}
-
-
+# --------------------------------
+#
+# ITEM MODULE
+#
+# --------------------------------
 @app.route('/item_info/<int:id>')
 @login_required
 def item_info_page(id):
     item = Item.query.get_or_404(id)
-    user_inventory = item.user_inventory.filter(Inventory.quantity>0).all()
-    # print(type(user_inventory))
-    # cursor.execute("select avg(rate) from ItemRating where item_id == ?", (id))
-    average = ItemRating.query.\
-        with_entities(func.avg(ItemRating.rate).label('average')).\
-        filter(ItemRating.item_id == id).all()[0][0]
 
-    # cursor.execute("select * from ItemRating where item_id == ?", (id))
-    # ratings = ItemRating.query.filter(ItemRating.item_id == id).all()
-    # ----------------
-    # Translates the following sql:
-    # --------
-    # select
-    #     withname.id,
-    #     withname.name,
-    #     withname.item,
-    #     withname.comment,
-    #     withname.rate,
-    #     withname.ts,
-    #     count(upvote.voter_id),
-    #     exists (
-    #         select 1
-    #     from upvote
-    #         where
-    #     withname.id == upvote.rating_id
-    #     and
-    #     upvote.voter_id == ?)
-    # from upvote join (
-    #         select
-    #         rating.id as id,
-    #         user.name as name,
-    #         rating.item_id as item,
-    #         rating.comment as comment,
-    #         rating.rate as rate,
-    #         rating.ts as ts
-    #     from rating join user on rating.rater_id == user.id
-    #     where rating.item_id == ?
-    # ) as withname
-    # on upvote.rating_id == withname.id
-    # group by withname.id
-    # --------
-    # ?, ? represents (current user, current item)
-    # ----------------
+    user_inventory = item.user_inventory.all()
 
-    q = ItemRating.query.filter(ItemRating.item_id == item.id). \
-        join(User, User.id == ItemRating.rater_id). \
-        outerjoin(ItemUpvote, ItemRating.id == ItemUpvote.rating_id). \
-        group_by(ItemRating.id, User.name, ItemRating.item_id, ItemRating.comment, ItemRating.rate, ItemRating.ts). \
-        with_entities(
-        ItemRating.id.label("rating_id"),
-        User.name.label("name"),
-        ItemRating.item_id.label("item_id"),
-        ItemRating.comment.label("comment"),
-        ItemRating.rate.label("rate"),
-        ItemRating.ts.label("ts"),
-        func.count(ItemUpvote.voter_id).label("num_upvotes"),
-        func.max(
-            case([(ItemUpvote.voter_id == current_user.id, 1)], else_=0)
-        )
-    )
-    ratings = q.all()
 
-    # cursor.execute("select rate, count(rater_id) as cnt
-    #                   from ItemRating
-    #                   where item_id == ?
-    #                   group by rate", (id))
-    distribution = ItemRating.query.filter(ItemRating.item_id == id).\
-        with_entities(ItemRating.rate, func.count(ItemRating.rater_id).label("cnt")).\
-        group_by(ItemRating.rate).all()
+    # TODO: Find if an item is reviewable
+    # commentable = Order.query.filter(Order.buyer_id == current_user.id).\
+    #     join(Order_item, Order_item.order_id == Order.id).\
+    #     filter(Order_item.item_id == id).all()
+    # commentable = len(commentable) > 0
+    commentable = True
 
-    actuals = {x: 0 for x in range(6)}
-    for dist in distribution:
-        actuals[dist[0]] = dist[1]
+    average, ratings, actuals, current_review = abstract_info(ItemRating, ItemUpvote, id, current_user.id)
 
-    current_review = ItemRating.query.filter(ItemRating.item_id == id, ItemRating.rater_id == current_user.id).all()
-    # print(ItemRating.query.filter(ItemRating.item_id == id).all())
 
     return render_template('item_info.html', item=item,
                            reviews=ratings,
@@ -325,8 +462,26 @@ def item_info_page(id):
                            current=current_user,
                            user_review=current_review[0] if len(current_review) > 0 else None,
                            has_user_review=len(current_review) > 0,
-                           reviewable=True,
+                           reviewable=commentable,
                            user_inventory=user_inventory)
+
+
+@app.route("/item_upvote", methods=['POST'])
+@login_required
+def item_upvote():
+    return abstract_upvote(request, current_user.id, ItemUpvote)
+
+
+@app.route("/item_review", methods=['POST'])
+@login_required
+def receive_item_review():
+    return abstract_edit_review(request, current_user.id, ItemRating)
+
+
+@app.route("/delete_item_review", methods=["POST"])
+@login_required
+def delete_item_review():
+    return abstract_delete_review(request, current_user.id, ItemRating)
 
 
 def allowed_file(filename):
@@ -620,9 +775,49 @@ def page_not_found(e):
     return render_template('404.html'), 404
 
 
+# --------------------------------
+#
+# USER MODULE
+#
+# --------------------------------
 @app.route('/public_profile/<int:id>')
 @login_required
 def public_profile_page(id):
     user = User.query.get_or_404(id)
-    return render_template('public_profile.html', user=user)
 
+    # TODO: Find if the user can comment the seller
+    # commentable = Order.query.filter(Order.buyer_id == current_user.id).\
+    #     join(Order_item, Order_item.order_id == Order.id).\
+    #     filter(Order_item.seller_id == id).all()
+    # commentable = len(commentable) > 0
+    commentable = True
+
+    average, ratings, actuals, current_review = abstract_info(SellerRating, SellerUpvote, id, current_user.id)
+
+    return render_template('public_profile.html', user=user,
+                           reviews=ratings,
+                           average=round(average, 1) if average is not None else average,
+                           distribution=actuals, num_reviews=len(ratings),
+                           boolean_mask=to_boolean_mask,
+                           current=current_user,
+                           user_review=current_review[0] if len(current_review) > 0 else None,
+                           has_user_review=len(current_review) > 0,
+                           reviewable=commentable)
+
+
+@app.route("/seller_upvote", methods=['POST'])
+@login_required
+def seller_upvote():
+    return abstract_upvote(request, current_user.id, SellerUpvote)
+
+
+@app.route("/seller_review", methods=['POST'])
+@login_required
+def receive_seller_review():
+    return abstract_edit_review(request, current_user.id, SellerRating)
+
+
+@app.route("/delete_seller_review", methods=["POST"])
+@login_required
+def delete_seller_review():
+    return abstract_delete_review(request, current_user.id, SellerRating)

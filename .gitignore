@@ -1,4 +1,5 @@
 *.pyc
 Minizon/.idea/misc.xml
-Minizon/.idea/misc.xml
 Minizon/MiniAmazon/__pycache__/
+Minizon/.DS_Store
+*.xml

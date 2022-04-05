@@ -1,0 +1,281 @@
+{% extends 'base.html' %}
+
+{% block title %}
+    Conversations
+{% endblock %}
+
+{% block content %}
+
+    <style>
+        body {
+            height:100vh;
+            overflow:hidden;
+        }
+    </style>
+
+    <div class="container" id="conversation-app">
+        <div class="row h-100 m-2 p-2" style="overflow:hidden">
+            <script>
+                let history = {};
+                let otherID = -1;
+                function scrollToBottom() {
+                    let renderer = document.getElementById("conversation-renderer");
+                    renderer.scrollTop = renderer.scrollHeight;
+                }
+
+                function saveToHistory(content) {
+                    if (otherID >= 0) {
+                        history[otherID] = content;
+                    }
+                }
+
+                function loadFromHistory() {
+                    if (otherID in history) {
+                        return history[otherID];
+                    } else {
+                        return "";
+                    }
+                }
+
+                function clearHistory() {
+                    if (otherID in history) {
+                        delete history[otherID];
+                    }
+                }
+
+                function sendMessage() {
+                    if (otherID < 0) {
+                        return;
+                    } else {
+                        let draft = document.getElementById("input-box");
+                        let messageContainer = document.getElementById("conversation-renderer");
+                        let msgbox = renderMessage({
+                            status: "sending",
+                            type: "send",
+                            content: draft.value,
+                        });
+                        messageContainer.appendChild(msgbox);
+                        scrollToBottom();
+                        clearHistory();
+
+                        axios.post("{{ url_for('receive_message') }}", {
+                            other: otherID,
+                            content: draft.value
+                        }).then(function (response) {
+                            let result = response.data;
+                            let statusDisplay = Array.from(msgbox.children).filter(x => x.classList.contains("col-3"))[0].children[0];
+                            if (result.status == true) {
+                                statusDisplay.style.display = "none";
+                            } else {
+                                statusDisplay.className = "float-right fa fa-refresh text-danger";
+                                statusDisplay.onclick = resendMessage(draft.value);
+                            }
+
+                            Array.from(msgbox.children).filter(x => x.classList.contains("col-9"))[0].children[0].children[2].innerText = result.timestamp;
+                            scrollToBottom();
+                        }).catch(function (error) {
+                            console.log(error);
+                        })
+                        draft.value = "";
+                    }
+                }
+
+                function resendMessage(message) {
+                    let draft = document.getElementById("input-box");
+                    draft.value = message;
+                    sendMessage();
+                }
+
+                function setHeight() {
+                    let vh = window.innerHeight;
+                    let navheight = document.getElementsByTagName("nav")[0].clientHeight;
+                    let app = document.getElementById("conversation-app");
+                    app.style.height = `${vh - navheight - 5}px`;
+                    app.style.maxHeight = `${vh - navheight - 5}px`;
+                }
+
+                function renderMessage(message) {
+                    let outer = document.createElement("div");
+                    outer.className = "row";
+
+                    let smaller = document.createElement("div");
+                    smaller.className = "col-3";
+
+                    let larger = document.createElement("div");
+                    larger.className = "col-9";
+
+                    // Message Status inside smaller
+                    if (("status" in message)) {
+                        let status = document.createElement("i");
+                        if (message.status == "sending") {
+                            status.className = "float-right fa fa-circle-o-notch fa-spin m-2 p-2 align-middle";
+                        } else if (message.status == "fail") {
+                            status.className = "float-right fa fa-refresh text-danger m-2 p-2 align-middle";
+                            status.onclick = resendMessage(message.content);
+                        } else {
+                            status.style.display = "none";
+                        }
+                        smaller.appendChild(status);
+                    }
+
+                    // Message container inside larger
+                    let inside = document.createElement("div");
+                    inside.className = "m-2 p-2 rounded-lg";
+                    larger.appendChild(inside);
+
+
+                    if (message.type == "send") {
+                        outer.appendChild(smaller);
+                        outer.appendChild(larger);
+                        inside.className += " bg-secondary text-white";
+                    } else {
+                        outer.appendChild(larger);
+                        outer.appendChild(smaller);
+                        inside.className += " bg-info text-white";
+                    }
+
+                    let content = message.content;
+                    if (content.startsWith("image://")) {
+                        // TODO: Renders the base64-encoded image
+                    }
+
+                    let rendered = document.createElement("span");
+                    rendered.innerText = content;
+                    inside.appendChild(rendered);
+
+                    inside.appendChild(document.createElement("br"));
+
+                    let timestamp = document.createElement("small");
+                    if (message.timestamp === undefined) {
+                        message.timestamp = "";
+                    }
+                    timestamp.innerText = message.timestamp;
+                    inside.appendChild(timestamp);
+
+                    return outer;
+                }
+
+                function renderConversation(conversations, other_id) {
+                    let messageContainer = document.getElementById("conversation-renderer");
+                    messageContainer.innerHTML = "";
+                    conversations.forEach(msg => {
+                        messageContainer.appendChild(renderMessage(msg));
+                    });
+                    scrollToBottom();
+                }
+
+                function loadConversation(other_id) {
+                    let draft = document.getElementById("input-box");
+                    draft.placeholder = "Type in your message here";
+                    saveToHistory(draft.value);
+
+                    axios.post("{{ url_for('conversations') }}", {
+                        other: other_id
+                    }).then(function (response) {
+                        let result = response.data;
+                        renderConversation(result.conversation, other_id);
+                        otherID = other_id;
+                        draft.value = loadFromHistory();
+                    }).catch(function (error) {
+                        console.log(error);
+                    })
+                }
+
+                function makeContactContainer(contact) {
+                    let outer = document.createElement("li");
+                    outer.className = "list-group-item";
+                    outer.onclick = () => {
+                        loadConversation(contact.other_id);
+                    };
+
+                    let inner = document.createElement("p");
+                    inner.className = "text-truncate";
+                    outer.appendChild(inner);
+
+                    let name = document.createElement("span");
+                    name.innerText = contact.other;
+                    name.className = "font-weight-bold";
+                    inner.appendChild(name);
+
+                    inner.appendChild(document.createElement("br"));
+
+                    let comment = document.createElement("span");
+                    comment.innerText = contact.content;
+                    comment.className = "font-weight-light";
+                    inner.appendChild(comment);
+
+                    inner.appendChild(document.createElement("br"));
+
+                    let time = document.createElement("small");
+                    time.innerText = contact.timestamp;
+                    time.className = "font-weight-light";
+                    inner.appendChild(time);
+
+                    return outer;
+                }
+
+                function loadContacts(contacts) {
+                    let contactsContainer = document.getElementById("contacts-container");
+                    contactsContainer.innerHTML = "";
+                    contacts.forEach(contact => {
+                        contactsContainer.appendChild(makeContactContainer(contact));
+                    });
+                }
+
+                function getContacts() {
+                    axios.post("{{ url_for('contacts') }}", {}
+                    ).then(function (response) {
+                        let result = response.data;
+                        loadContacts(result.contacts);
+                    }).catch(function (error) {
+                        console.log(error);
+                    })
+                }
+
+                getContacts();
+
+                setHeight();
+
+                window.onresize = setHeight;
+            </script>
+            <div class="col-3 h-100 d-flex flex-column" style="overflow:scroll">
+                <div class="card scrollable">
+                    <ul class="list-group list-group-flush" id="contacts-container">
+                        <li class="list-group-item" id="loading-item">
+                            <i class="fa fa-spinner fa-spin"></i>
+                            Loading Your Contact List...
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-9 h-100 bg-light d-flex flex-column"  style="overflow:hidden">
+                <div class="flex-grow-1"
+                     id="conversation-renderer"
+                     style="overflow:scroll">
+
+                </div>
+                <div style="min-height:4rem;max-height:20rem" class="row">
+                    <div class="col-9">
+                        <form>
+                            <div class="form-group">
+                                <textarea
+                                        class="form-control"
+                                        id="input-box"
+                                        rows="3"
+                                        placeholder="Select a contact to send message">
+                                </textarea>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="col-3 d-flex justify-content-center flex-column">
+                        <button type="button" class="btn btn-info" onclick="sendMessage()">
+                            <i class="fa fa-paper-plane-o"></i>
+                            Send
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+{% endblock %}
