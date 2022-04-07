@@ -773,8 +773,34 @@ def buy_history_page():
         if form.validate_on_submit():
             # process search
             query = Order.query.filter(Order.buyer_id == current_user.id)
-            # process sort and order
-            buy_order = query.join(Order_item, Order_item.order_id == Order.id).order_by(Order.Date.desc()).all()
+            if form.sort_by.data == 'Desc':
+                if form.search_by.data == 'All':
+                    buy_order = query.join(Order_item, Order_item.order_id == Order.id).order_by(desc(Order.Date)).all()
+                elif form.search_by.data == 'Item':
+                    search = form.search.data
+                    buy_order = query.join(Order_item, Order_item.order_id == Order.id).join(Item, Item.id==Order_item.item_id).filter(db.or_(
+                    Item.name.ilike(f'%{search}%'),
+                    Item.description.ilike(f'%{search}%')
+                    )).order_by(desc(Order.Date)).all()
+                elif form.search_by.data == 'Seller':
+                    search = form.search.data
+                    buy_order = query.join(Order_item, Order_item.order_id == Order.id).join(User, User.id==Order_item.seller_id).filter(db.or_(
+                    User.name.ilike(f'%{search}%'))
+                    ).order_by(desc(Order.Date)).all()
+            else:
+                if form.search_by.data == 'All':
+                    buy_order = query.join(Order_item, Order_item.order_id == Order.id).order_by(asc(Order.Date)).all()
+                elif form.search_by.data == 'Item':
+                    search = form.search.data
+                    buy_order = query.join(Order_item, Order_item.order_id == Order.id).join(Item, Item.id==Order_item.item_id).filter(db.or_(
+                    Item.name.ilike(f'%{search}%'),
+                    Item.description.ilike(f'%{search}%')
+                    )).order_by(asc(Order.Date)).all()
+                elif form.search_by.data == 'Seller':
+                    search = form.search.data
+                    buy_order = query.join(Order_item, Order_item.order_id == Order.id).join(User, User.id==Order_item.seller_id).filter(db.or_(
+                    User.name.ilike(f'%{search}%'))
+                    ).order_by(asc(Order.Date)).all()
         if form.errors != {}:
             for err_msg in form.errors.values():
                 flash(f'Error: {err_msg}', category='danger')

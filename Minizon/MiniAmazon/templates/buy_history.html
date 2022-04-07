@@ -17,6 +17,12 @@
         </div>
         <div class="p-2 bd-highlight">
             <div class="d-flex flex-row">
+                <h4 class="mr-3">Date order: </h4>
+                {{ form.sort_by(class="form-control") }}
+            </div>
+        </div>
+        <div class="p-2 bd-highlight">
+            <div class="d-flex flex-row">
                 <h4 class="ml-7 mr-3">Search: </h4>
                 {{ form.search(class="form-control") }}
                 {{ form.submit(class="btn btn-lg btn-block btn-primary ml-3 p-0") }}
