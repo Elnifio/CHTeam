@@ -89,6 +89,7 @@
                         <td>
                             <div class="mt-3">
                                 <a class="btn btn-outline btn-info mt-2 mb-2" href="{{ url_for('cart_add_page', item_id=inv.item_id, user_id=inv.seller_id) }}">Add to Cart</a>
+                                <a class="btn btn-outline btn-success mt-2 mb-2" href="{{ url_for('start_message', id=inv.seller_id) }}"><i class="fa fa-commenting-o"></i>Message with Seller</a>
                             </div>
                         </td>
                     </tr>

@@ -302,17 +302,23 @@ def logout_page():
 @app.route("/start_message/<int:id>")
 @login_required
 def start_message(id):
-    # TODO: NOT TESTED FUNCTION
     sender = current_user.id
     receiver = id
-    q = Conversation.query.filter(
-        (Conversation.sender_id == sender & Conversation.receiver_id == receiver) |
-        (Conversation.sender_id == receiver & Conversation.receiver_id == sender)
-    )
+    print(f"Sender id: {sender}, Receiver ID: {receiver}")
 
-    if len(q.all()) == 0:
-        msg = Conversation(sender_id=sender, receiver_id=receiver, content=control_message['initiated'])
+    q = Conversation.query.filter(
+        ((Conversation.sender_id == sender) & (Conversation.receiver_id == receiver)) |
+        ((Conversation.sender_id == receiver) & (Conversation.receiver_id == sender))
+    ).order_by(Conversation.ts).all()
+
+    if len(q) == 0:
+        msg = Conversation(sender_id=sender, receiver_id=receiver, content=control_message['initiated'], priority=1)
         db.session.add(msg)
+        db.session.commit()
+    else:
+        msg = q[-1]
+        print(q)
+        msg.priority = 1
         db.session.commit()
     return redirect(url_for("conversation_page"))
 
@@ -348,10 +354,19 @@ def conversations():
 
     other = argument['other']
     q = Conversation.query.filter(
-        (Conversation.content != control_message['initiated']) &
         (((Conversation.sender_id == current_user.id) & (Conversation.receiver_id == other)) |
         ((Conversation.receiver_id == current_user.id) & (Conversation.sender_id == other))))
     q = q.order_by(Conversation.ts)
+
+    to_be_updated = q.filter(Conversation.priority == 1)
+    mapping = []
+    for updated in to_be_updated.all():
+        mapping.append({"id": updated.id, "priority": 0})
+    print(mapping)
+    db.session.bulk_update_mappings(Conversation, mapping)
+    db.session.commit()
+
+    q = q.filter((Conversation.content != control_message['initiated']))
 
     return {
         "conversation": list(map(
@@ -398,7 +413,8 @@ def contacts():
             Conversation.ts.label("timestamp"),
             Conversation.content.label("content"),
             User.name.label("other"),
-            User.id.label("other_id")
+            User.id.label("other_id"),
+            Conversation.priority.label("priority")
         )
 
     receivers = Conversation.query.\
@@ -411,7 +427,8 @@ def contacts():
             Conversation.ts.label("timestamp"),
             Conversation.content.label("content"),
             User.name.label("other"),
-            User.id.label("other_id")
+            User.id.label("other_id"),
+            Conversation.priority.label("priority")
         )
 
     return {
@@ -419,10 +436,11 @@ def contacts():
             lambda x: {
                 "other_id": x.other_id,
                 "other": x.other,
-                "content": x.content,
-                "timestamp": format_time(x.timestamp)
+                "content": "" if x.content == control_message['initiated'] else x.content,
+                "timestamp": format_time(x.timestamp),
+                "priority": x.priority
             },
-            senders.union(receivers).order_by(desc(Conversation.ts)).all()
+            senders.union(receivers).order_by(desc(Conversation.priority), desc(Conversation.ts)).all()
         )),
     }
 

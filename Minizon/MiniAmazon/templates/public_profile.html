@@ -15,6 +15,7 @@
                 <th scope="col">Name</th>
                 <th scope="col">Address</th>
                 <th scope="col">Email</th>
+                <th scope="col">Actions</th>
             </tr>
             </thead>
             <tbody>
@@ -25,6 +26,7 @@
                         <td><h5 class="mt-4">{{ user.name }}</h5></td>
                         <td><h5 class="mt-4">{{ user.address }}</h5></td>
                         <td><h5 class="mt-4">{{ user.email }}</h5></td>
+                        <td><a class="btn btn-outline-success mt-2 mb-2" href="{{ url_for('start_message', id=user.id) }}"><i class="fa fa-commenting-o"></i></a></td>
                     </tr>
             {% endif %}
             </tbody>

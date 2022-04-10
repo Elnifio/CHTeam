@@ -160,6 +160,7 @@ class Conversation(db.Model):
     receiver_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     content = db.Column(db.String(600), nullable=False, default="")
     ts = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    priority = db.Column(db.Integer, nullable=False, default=0)
     
     def __repr__(self):
         return '<Conversation (%r -> %r) @ %r>: %r' % (self.sender, self.receiver, self.ts, self.content)

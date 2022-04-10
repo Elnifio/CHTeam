@@ -3,7 +3,7 @@
 # ----------------
 from MiniAmazon import db
 from MiniAmazon.models import *
-from sqlalchemy import func, case
+from sqlalchemy import func, case, desc
 from itertools import combinations
 from datetime import datetime, timedelta
 from sqlalchemy.orm import aliased
@@ -263,11 +263,11 @@ def generate_data():
     # create_user()
     # create_categories()
     # create_items()
-    create_item_ratings()
-    create_item_upvotes()
-    # create_conversation()
-    create_seller_ratings()
-    create_seller_upvotes()
+    # create_item_ratings()
+    # create_item_upvotes()
+    create_conversation()
+    # create_seller_ratings()
+    # create_seller_upvotes()
     return
 
 
@@ -434,7 +434,9 @@ def conversations():
 
 def contacts():
     print("--------\n\n\n--------")
-    uoi = User.query.filter(User.id == 17).all()[0]
+    uoi = User.query.filter(User.id == 22).all()[0]
+
+    ooi = User.query.filter((User.id < 22) & (User.id > 17)).all()
 
     roi = Conversation.query.filter((Conversation.sender_id == uoi.id) | (Conversation.receiver_id == uoi.id))
 
@@ -454,7 +456,8 @@ def contacts():
         with_entities(
             Conversation.ts.label("Timestamp"),
             Conversation.content.label("Content"),
-            User.name.label("Other")
+            User.name.label("Other"),
+            Conversation.priority.label("Priority")
         )
 
     print("--------\n\nSenders:\n\n--------")
@@ -467,7 +470,8 @@ def contacts():
         with_entities(
             Conversation.ts.label("Timestamp"),
             Conversation.content.label("Content"),
-            User.name.label("Other")
+            User.name.label("Other"),
+            Conversation.priority.label("Priority")
         )
     print("--------\n\nReceivers:\n\n--------")
     print(receivers.all())
@@ -478,11 +482,13 @@ def contacts():
 
     print("--------\n\n\n--------")
     for item in map(
-            lambda x: {"Other": x.Other, "Content": x.Content, "Timestamp": x.Timestamp},
-            senders.union(receivers).order_by(Conversation.ts).all()):
+            lambda x: {"Other": x.Other, "Content": x.Content, "Timestamp": x.Timestamp, "Priority": x.Priority},
+            senders.union(receivers).order_by(Conversation.ts, desc(Conversation.priority)).all()):
         print(item)
 
     return
+
+contacts()
 
 
 def find_rating_average_test():
@@ -521,8 +527,3 @@ def find_rating_average_test():
     # for item in ratings:
     #     print(item)
     #     print("----")
-
-
-
-
-find_rating_average_test()

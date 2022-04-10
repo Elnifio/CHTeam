@@ -226,6 +226,7 @@
                     axios.post("{{ url_for('contacts') }}", {}
                     ).then(function (response) {
                         let result = response.data;
+                        console.log(result.contacts);
                         loadContacts(result.contacts);
                     }).catch(function (error) {
                         console.log(error);
