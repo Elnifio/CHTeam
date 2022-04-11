@@ -44,8 +44,7 @@ class ItemForm(FlaskForm):
 class MarketForm(FlaskForm):
     category = SelectField(label='Category')
     sort_by = SelectField(label='Sort By', choices=['Price', 'Name', 'Rating', 'Quantity'])
-    search = StringField(label='Keyword', validators=[DataRequired(),
-                                                      Regexp(regex, message="Keyword"+letter_constraint)])
+    search = StringField(label='Keyword')
     order_by = SelectField(label='Order By', choices=['Asc', 'Desc'])
     submit = SubmitField(label='Submit')
 

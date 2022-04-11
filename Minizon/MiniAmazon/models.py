@@ -18,8 +18,8 @@ class Inventory(db.Model):
 
 class Item(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(length=60), nullable=False)
-    description = db.Column(db.Text, nullable=False)
+    name = db.Column(db.String(length=60), nullable=False, index=True)
+    description = db.Column(db.Text, nullable=False, index=True)
 
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=False)
     creator_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -254,7 +254,21 @@ class Order(db.Model):
 
     buyer = db.relationship('User', backref=db.backref('buyer_order', lazy='dynamic'))
 
-    def __repr__(self):
+    @hybrid_property
+    def quantity(self):
+        total_quantity = self.order_items.with_entities(db.func.sum(Order_item.quantity)).first()[0]
+        return total_quantity
+
+    @quantity.expression
+    def quantity(self):
+        return(
+            select([db.func.sum(Order_item.quantity)]).
+                where(self.id == Order_item.order_id).
+                label('quantity')
+        )
+
+
+def __repr__(self):
         return f'<Order {self.id}>'
 
 
@@ -267,7 +281,7 @@ class Order_item(db.Model):
     fulfill = db.Column(db.String, nullable=False)
 
     seller = db.relationship('User', backref='sell_order')
-    order = db.relationship('Order', backref='order_items')
+    order = db.relationship('Order', backref=db.backref('order_items', lazy='dynamic'))
     item = db.relationship('Item', backref='order_item')
 
 class Balance_change(db.Model):

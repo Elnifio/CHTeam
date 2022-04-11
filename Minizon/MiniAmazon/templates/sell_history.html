@@ -37,6 +37,7 @@
         <th scope="col">Address</th>
         <th scope="col">Item name</th>
         <th scope="col">Order Date</th>
+        <th scope="col">Price</th>
         <th scope="col">Number</th>
         <th scope="col">Status</th>
         <th scope="col">Options</th>
@@ -52,6 +53,7 @@
             <td><h5 class="mt-4">{{ order.order.address }}</h5></td>
             <td><h5 class="mt-4">{{ order.item.name }}</h5></td>
             <td><h5 class="mt-4">{{ order.order.Date }}</h5></td>
+            <td><h5 class="mt-4">{{ order.price }}</h5></td>
             <td><h5 class="mt-4">{{ order.quantity }}</h5></td>
             <td><h5 class="mt-4">{{ order.fulfill }}</h5></td>
             <td>
@@ -65,10 +67,10 @@
     {% endif %}
     </tbody>
 </table>
+    <div style = "text-align:center;">
+        <canvas id="lineChart" width="900" height="400"></canvas>
+    </div>
 </div>
-</div>
-<div style = "text-align:center;">
-    <canvas id="lineChart" width="900" height="400"></canvas>
 </div>
 <script>
     var ctx = document.getElementById("lineChart").getContext("2d");
@@ -82,7 +84,7 @@
                data: {{values | safe}},
                fill: false,
                borderColor: "rgb(75, 192, 192)",
-               blineTension: 0.1
+               lineTension: 1
              }
             ]
         },
