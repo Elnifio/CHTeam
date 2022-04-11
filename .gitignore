@@ -4,3 +4,4 @@ Minizon/MiniAmazon/__pycache__/
 Minizon/.DS_Store
 *.xml
 AutomatedTest/node_modules/*
+AutomatedTest/*
