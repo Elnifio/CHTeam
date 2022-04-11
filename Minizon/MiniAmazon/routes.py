@@ -464,13 +464,11 @@ def item_info_page(id):
 
     user_inventory = item.user_inventory.all()
 
-
     # TODO: Find if an item is reviewable
-    # commentable = Order.query.filter(Order.buyer_id == current_user.id).\
-    #     join(Order_item, Order_item.order_id == Order.id).\
-    #     filter(Order_item.item_id == id).all()
-    # commentable = len(commentable) > 0
-    commentable = True
+    commentable = Order.query.filter(Order.buyer_id == current_user.id).\
+        join(Order_item, Order_item.order_id == Order.id).\
+        filter(Order_item.item_id == id).all()
+    commentable = len(commentable) > 0
 
     average, ratings, actuals, current_review = abstract_info(ItemRating, ItemUpvote, id, current_user.id)
 
@@ -483,7 +481,7 @@ def item_info_page(id):
                            current=current_user,
                            user_review=current_review[0] if len(current_review) > 0 else None,
                            has_user_review=len(current_review) > 0,
-                           reviewable=commentable,
+                           reviewable="true" if commentable else "false",
                            user_inventory=user_inventory)
 
 
@@ -999,11 +997,11 @@ def public_profile_page(id):
     user = User.query.get_or_404(id)
 
     # TODO: Find if the user can comment the seller
-    # commentable = Order.query.filter(Order.buyer_id == current_user.id).\
-    #     join(Order_item, Order_item.order_id == Order.id).\
-    #     filter(Order_item.seller_id == id).all()
-    # commentable = len(commentable) > 0
-    commentable = True
+    commentable = Order.query.filter(Order.buyer_id == current_user.id).\
+        join(Order_item, Order_item.order_id == Order.id).\
+        filter(Order_item.seller_id == id).all()
+    print(commentable)
+    commentable = len(commentable) > 0
 
     average, ratings, actuals, current_review = abstract_info(SellerRating, SellerUpvote, id, current_user.id)
 
