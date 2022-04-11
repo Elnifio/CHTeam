@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+
+{% block title %}
+    Balance Change
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <form method="POST" class="form-query" style="color:black" enctype="multipart/form-data">
+        {{ form.hidden_tag() }}
+    <div class="d-flex justify-content-center">
+        <div class="p-2 bd-highlight">
+            <div class="d-flex flex-row">
+                <h4 class="mr-3">Order by date: </h4>
+                {{ form.order_by(class="form-control") }}
+            </div>
+        </div>
+        <div class="p-2 bd-highlight">
+            <div class="d-flex flex-row">
+                {{ form.submit(class="btn btn-lg btn-block btn-primary ml-3 p-0") }}
+            </div>
+        </div>
+    </div>
+    </form>
+<hr/>
+<table class="table table-hover table-striped table-sm">
+    <thead class="thead-dark">
+    <tr>
+        <th scope="col">Amount</th>
+        <th scope="col">Date</th>
+        <th scope="col">Category</th>
+    </tr>
+    </thead>
+    <tbody>
+    <!-- Your rows inside the table HERE: -->
+    {%  if balance_history %}
+    {% for history in balance_history %}
+        <tr>
+            <td><h5 class="mt-4">{{ history.amount }}</h5></td>
+            <td><h5 class="mt-4">{{ history.ts }}</h5></td>
+            <td><h5 class="mt-4">{{ history.category }}</h5></td>
+        </tr>
+    {% endfor %}
+    {% endif %}
+    </tbody>
+</table>
+</div>
+{% endblock %}

@@ -18,7 +18,7 @@ class Inventory(db.Model):
 
 class Item(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(length=30), nullable=False)
+    name = db.Column(db.String(length=60), nullable=False)
     description = db.Column(db.Text, nullable=False)
 
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=False)
@@ -55,6 +55,19 @@ class Item(db.Model):
             label('rating')
         )
 
+    @hybrid_property
+    def quantity(self):
+        total_quantity = self.user_inventory.with_entities(db.func.sum(Inventory.quantity)).first()[0]
+        return total_quantity
+
+    @quantity.expression
+    def quantity(self):
+        return(
+            select([db.func.sum(Inventory.quantity)]).
+            where(self.id == Inventory.item_id).
+            label('quantity')
+        )
+
     def __repr__(self):
         return f'<Item {self.name}>'
 
@@ -88,6 +101,19 @@ class Cart(db.Model):
     ts = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
     buyer = db.relationship('User', backref=db.backref('item_cart', lazy='dynamic'), foreign_keys=[buyer_id])
+    item = db.relationship('Item')
+    seller = db.relationship('User', foreign_keys=[seller_id])
+
+
+class Favorites(db.Model):
+    item_id = db.Column(db.Integer, db.ForeignKey('item.id'), primary_key=True)
+    seller_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
+    buyer_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
+    quantity = db.Column(db.Integer, nullable=False)
+    price = db.Column(db.Float, nullable=False)
+    ts = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    buyer = db.relationship('User', backref=db.backref('item_favorites', lazy='dynamic'), foreign_keys=[buyer_id])
     item = db.relationship('Item')
     seller = db.relationship('User', foreign_keys=[seller_id])
 
@@ -151,7 +177,7 @@ class User(db.Model, UserMixin):
         return bcrypt.check_password_hash(self.password, plaintext)
 
     def __repr__(self):
-        return f'<User {self.id}>'
+        return f'<User {self.name}>'
 
 
 class Conversation(db.Model):
@@ -244,4 +270,9 @@ class Order_item(db.Model):
     order = db.relationship('Order', backref='order_items')
     item = db.relationship('Item', backref='order_item')
 
-
+class Balance_change(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    amount = db.Column(db.Float, nullable=False)
+    ts = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    category = db.Column(db.String(length=30), nullable=False)
