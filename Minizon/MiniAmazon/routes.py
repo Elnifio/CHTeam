@@ -818,7 +818,8 @@ def buy_history_page():
     buy_order = None
     query = None
     form = BuyHistoryForm()
-
+    # default all
+    buy_order = Order.query.filter(Order.buyer_id == current_user.id).join(Order_item, Order_item.order_id == Order.id).order_by(desc(Order.Date)).all()
     if request.method == 'POST':
         if form.validate_on_submit():
             # process search
@@ -995,9 +996,13 @@ def checkout():
         new_balance_change = Balance_change(user_id=current_user.id,
                                             amount=-total,
                                             category='Purchase')
+        new_balance_change_2 = Balance_change(user_id=cart.seller_id,
+                                            amount=total,
+                                            category='Sell')                                   
         db.session.add(order)
         db.session.add(current_user)
         db.session.add(new_balance_change)
+        db.session.add(new_balance_change_2)
         db.session.commit()
         flash(f'Checkout succeed!', category='success')
 
@@ -1128,7 +1133,7 @@ def balance_history_page():
     balance_history = None
     query = None
     form = BalanceHistoryForm()
-    balance_history = Balance_change.query.filter(Balance_change.user_id == current_user.id).all()
+    balance_history = Balance_change.query.filter(Balance_change.user_id == current_user.id).order_by(desc(Balance_change.ts)).all()
     if request.method == 'POST':
         if form.validate_on_submit():
             if form.order_by.data == 'Desc':
