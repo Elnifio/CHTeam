@@ -51,7 +51,10 @@ def make_rating_query(rating, upvote, rated_oi, rater_oi):
             func.max(
                 case([(upvote.voter_id == rater_oi, 1)], else_=0)
             ).label("is_voted")
-        )
+        ).\
+        order_by(desc(rating.ts))
+
+    top3 = q.order_by(desc(func.count(upvote.voter_id))).limit(3)
 
     return q
 
