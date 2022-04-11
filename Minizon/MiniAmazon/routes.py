@@ -251,8 +251,7 @@ def register_page():
                                 email=form.email.data,
                                 address=form.address.data,
                                 password_plain=form.password1.data,
-                                balance=form.balance.data
-                                )
+                                balance=form.balance.data)
         if User.query.filter_by(email=form.email.data).first():
             flash(f'Login Failed: email already exists.', category='danger')
             return redirect(url_for('register_page'))
