@@ -1,7 +1,7 @@
 from MiniAmazon import app, db, ALLOWED_EXTENSIONS, bcrypt
 from flask import render_template, redirect, url_for, flash, request
 from MiniAmazon.models import Item, User, Category, ItemImage, Inventory, ItemRating, ItemUpvote, Conversation, \
-    SellerRating, SellerUpvote, Order, Order_item, Cart, Order, Order_item
+    SellerRating, SellerUpvote, Order, Order_item, Cart, Order, Order_item, Favorites
 from MiniAmazon.forms import RegisterForm, LoginForm, ItemForm, MarketForm, SellForm, AddToCartForm, EditCartForm, ItemEditForm, \
     SellForm, EditUserForm, InventoryForm, InventoryEditForm, SellHistoryForm, BuyHistoryForm
 from flask_login import login_user, login_required, logout_user, current_user
@@ -200,7 +200,8 @@ def home_page():
 order_swicthes = {
     'Price': Item.price,
     'Name': Item.name,
-    'Rating': Item.rating
+    'Rating': Item.rating,
+    'Quantity': Item.quantity
 }
 
 
@@ -637,17 +638,16 @@ def cart_add_page(item_id, user_id):
         if form.validate_on_submit():
             item = Item.query.get_or_404(item_id)
             # check if this item is in current user's inventory
-            for i in current_user.item_inventory:
-                if i.item_id == item_id and i.seller_id == current_user.id:
-                    flash(f'Add to cart failed. {item.name} is already in your inventory.', category='danger')
-                    return redirect(url_for('cart_add_page', item_id=item_id, user_id=user_id))
-            # check if the item from the same seller is in current user's cart
-            items_cart = current_user.item_cart.all()
-            for i in items_cart:
-                if i.item_id == item_id and i.seller_id == user_id:
-                    flash(f'Add to cart failed. {item.name} from {inv.seller.name} is already in your cart',
-                          category='danger')
-                    return redirect(url_for('cart_add_page', item_id=item_id, user_id=user_id))
+            current_inventory = current_user.item_inventory.filter_by(item_id=item_id, seller_id=user_id).first()
+            if current_inventory:
+                flash(f'Add to cart failed. {item.name} is in your inventory.', category='danger')
+                return redirect(url_for('cart_add_page', item_id=item_id, user_id=user_id))
+            # check if the item from the same seller is in current user's cart and favorites
+            current_cart = current_user.item_cart.filter_by(item_id=item_id, seller_id=user_id).first()
+            current_favorite = current_user.item_favorites.filter_by(item_id=item_id, seller_id=user_id).first()
+            if current_cart or current_favorite:
+                flash(f'Add to cart failed. {item.name} already exists in your cart or category.', category='danger')
+                return redirect(url_for('cart_add_page', item_id=item_id, user_id=user_id))
             current_user.item_cart.append(Cart(
                     item=item,
                     seller_id=inv.seller_id,
@@ -796,7 +796,9 @@ def cart_page():
     total = current_user.item_cart.with_entities(
         db.func.sum(Cart.price * Cart.quantity)
     ).first()[0]
-    return render_template('cart.html', item_cart=item_cart, total=total)
+    total = 0.0 if total is None else total
+    favorites = current_user.item_favorites.order_by(Favorites.ts).all()
+    return render_template('cart.html', item_cart=item_cart, total=total, favorites=favorites)
 
 
 @app.route('/remove_cart/<int:item_id>/<int:seller_id>')
@@ -806,7 +808,7 @@ def remove_cart(item_id, seller_id):
     # print(item_cart)
     if item_cart:
         db.session.delete(item_cart)
-        flash(f'Remove from cart Success. {item_cart.item.name} is removed from your cart.', category='success')
+        flash(f'Remove from cart succeed. {item_cart.item.name} is removed from your cart.', category='success')
         db.session.commit()
         # flash(f'Remove from cart Success. {item_cart.item.name} is removed from your cart.', category='success')
     else:
@@ -829,11 +831,52 @@ def cart_edit_page(item_id, seller_id):
             db.session.commit()
             flash(f'Cart Edit success. You have {item_cart.quantity} X {item_cart.item.name} in your cart now.',
                   category='success')
+            return redirect(url_for('cart_page'))
         if form.errors:
             for err_msg in form.errors.values():
                 flash(f'Cart edit failed. {err_msg}', category='danger')
     return render_template('cart_edit.html', item_cart=item_cart, form=form)
 
+
+@app.route('/favorites_add/<int:item_id>/<int:seller_id>', methods=['GET', 'POST'])
+@login_required
+def favorites_add(item_id, seller_id):
+    # check if item from seller is in current_user's cart
+    current_cart = current_user.item_cart.filter_by(item_id=item_id, seller_id=seller_id).first()
+    if not current_cart:
+        flash(f'Add to favorites failed. Item does not exist in your cart.', category='danger')
+    else:
+        item_name = current_cart.item.name
+        quantity = current_cart.quantity
+        current_user.item_favorites.append(Favorites(item_id=item_id,
+                                                     seller_id=seller_id,
+                                                     quantity=quantity,
+                                                     price=current_cart.price))
+        db.session.delete(current_cart)
+        db.session.add(current_user)
+        db.session.commit()
+        flash(f'Add to favorites succeed! {quantity} X {item_name} added to your favorites.', category='success')
+    return redirect(url_for('cart_page'))
+
+
+@app.route('/favorites_move/<int:item_id>/<int:seller_id>', methods=['GET', 'POST'])
+@login_required
+def favorites_move(item_id, seller_id):
+    current_favorite = current_user.item_favorites.filter_by(item_id=item_id, seller_id=seller_id).first()
+    if not current_favorite:
+        flash(f'Move to cart failed. Item does not exist in your favorites.', category='danger')
+    else:
+        item_name = current_favorite.item.name
+        quantity = current_favorite.quantity
+        current_user.item_cart.append(Cart( item_id=item_id,
+                                            seller_id=seller_id,
+                                            quantity=quantity,
+                                            price=current_favorite.price))
+        db.session.delete(current_favorite)
+        db.session.add(current_user)
+        db.session.commit()
+        flash(f'Move to cart succeed! {quantity} X {item_name} added to your cart.', category='success')
+    return redirect(url_for('cart_page'))
 
 @app.route('/checkout')
 @login_required
@@ -876,7 +919,7 @@ def checkout():
         db.session.add(order)
         db.session.add(current_user)
         db.session.commit()
-        flash(f'Chekout success!', category='success')
+        flash(f'Checkout succeed!', category='success')
 
     return redirect(url_for('cart_page'))
 

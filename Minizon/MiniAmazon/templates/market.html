@@ -47,11 +47,12 @@
     <tr>
         <!-- Your Columns HERE -->
 {#        <th scope="col">Image</th>#}
-        <th scope="col"><div class="ml-4">Image</div></th>
-        <th scope="col">Name</th>
-        <th scope="col">Price</th>
-        <th scope="col">Rating</th>
-        <th scope="col">Options</th>
+        <th class="col-sm-2" scope="col"><div class="ml-4">Image</div></th>
+        <th class="col-sm-2" scope="col">Name</th>
+        <th class="col-sm-1" scope="col">Price</th>
+        <th class="col-sm-1" class="col">Quantity</th>
+        <th class="col-sm-2" scope="col">Rating</th>
+        <th class="col-sm-6" scope="col">Options</th>
     </tr>
     </thead>
     <tbody>
@@ -67,6 +68,7 @@
             </td>
             <td><h5 class="mt-4">{{ item.name }}</h5></td>
             <td><h5 class="mt-4">{{ item.price }}$</h5></td>
+            <td><h5 class="mt-4">{{ item.quantity }}</h5></td>
             <td><h5 class="mt-4">{{ item.rating }}</h5></td>
             <td>
                 <div class="mt-3">
