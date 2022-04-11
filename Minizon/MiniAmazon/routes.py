@@ -960,8 +960,12 @@ def checkout():
             db.session.add(inv)
             db.session.delete(cart)
         current_user.balance = current_user.balance - total
+        new_balance_change = Balance_change(user_id=current_user.id,
+                                            amount=total,
+                                            category='Purchase')
         db.session.add(order)
         db.session.add(current_user)
+        db.session.add(new_balance_change)
         db.session.commit()
         flash(f'Checkout succeed!', category='success')
 

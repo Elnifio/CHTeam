@@ -62,9 +62,15 @@
         <tr>
 {#            <td>{{ item.image }}</td>#}
             <td>
+                {% if item.images %}
                 <div class="ml-4">
                     <img src="../static/item_images/{{ item.images[0].name }}" alt='not found' width="170" height="100">
                 </div>
+                {%  else %}
+                <div class="ml-4">
+                    <img src="../static/item_images/none" alt='not found' width="170" height="100">
+                </div>
+                {% endif %}
             </td>
             <td><h5 class="mt-4">{{ item.name }}</h5></td>
             <td><h5 class="mt-4">{{ item.price }}$</h5></td>
