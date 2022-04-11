@@ -65,4 +65,30 @@
     </tbody>
 </table>
 </div>
+</div>
+<div style = "text-align:center;">
+    <canvas id="lineChart" width="900" height="400"></canvas>
+</div>
+<script>
+    var ctx = document.getElementById("lineChart").getContext("2d");
+    var lineChart = new Chart(ctx,{
+        type:"line",
+        data: {
+            labels: {{ labels | safe}},
+            datasets: [
+             {
+               label: "Data points",
+               data: {{values | safe}},
+               fill: false,
+               borderColor: "rgb(75, 192, 192)",
+               blineTension: 0.1
+             }
+            ]
+        },
+        options:{
+            responsive: false
+        }
+    }
+    );
+</script>
 {% endblock %}
