@@ -3,7 +3,7 @@
 # ----------------
 from MiniAmazon import db
 from MiniAmazon.models import *
-from sqlalchemy import func, case, desc
+from sqlalchemy import func, case
 from itertools import combinations
 from datetime import datetime, timedelta
 from sqlalchemy.orm import aliased
@@ -39,6 +39,8 @@ genconf = {
     'nusers': 15,               # Controls number of users generated
     "ncategories": 3,           # Controls number of categories generated
     'nitems': 30,               # Controls number of items generated
+    "ninventoryrecords": 30,
+    "norders": 30,
     'nitemratings': 20,         # Controls number of item ratings generated
     'nitemupvotes': 20,         # Controls number of item upvotes generated
     "nconversations": 20,       # Controls number of conversations generated
@@ -112,6 +114,49 @@ def create_items():
                     category_id=category.id, creator_id=creator.id)
         db.session.add(item)
     db.session.commit()
+
+
+@data_log()
+def create_inventories():
+    users = User.query.all()
+    items = Item.query.all()
+
+    for i in range(genconf['ninventoryrecords']):
+        random.seed(new_seed())
+        ioi = items[random.randint(0, len(items) - 1)]
+        random.seed(new_seed())
+        uoi = users[random.randint(0, len(users) - 1)]
+        inv = Inventory(seller_id=uoi.id, item_id=ioi.id,
+                        quantity=random.randint(0, 10),
+                        price=random.uniform(2, 50))
+        db.session.add(inv)
+    db.session.commit()
+
+
+@data_log()
+def create_order():
+    # Simulates the process of a user creating an order
+    users = User.query.all()
+    for i in range(genconf['norders']):
+        random.seed(new_seed())
+        uoi = users[random.randint(0, len(users)-1)]
+        ooi = Order(address=uoi.address, buyer_id=uoi.id)
+        items = Item.query.all()
+        for item in items:
+            chance = random.uniform(0, 1)
+            if chance < 0.3:
+                continue
+            buyable = Inventory.query.filter(Inventory.item_id == item).all()
+            if len(buyable) == 0:
+                continue
+            random.seed(new_seed())
+            chosen = buyable[random.randint(0, len(buyable) - 1)]
+            random.seed(new_seed())
+            quantity = random.randint(1, chosen.quantity)
+            oitem = Order_item(order_id=ooi.id, item_id=item.id, seller_id=chosen.seller_id,
+                               quantity=quantity, price=chosen.price, fulfill="None")
+
+
 
 
 @data_log()
@@ -263,11 +308,11 @@ def generate_data():
     # create_user()
     # create_categories()
     # create_items()
-    # create_item_ratings()
-    # create_item_upvotes()
-    create_conversation()
-    # create_seller_ratings()
-    # create_seller_upvotes()
+    create_item_ratings()
+    create_item_upvotes()
+    # create_conversation()
+    create_seller_ratings()
+    create_seller_upvotes()
     return
 
 
@@ -286,14 +331,14 @@ def item_rating_average_test():
     print("--------")
 
     for item in items:
-        result = ItemRating.query.\
-            with_entities(func.avg(ItemRating.rate).label("average")).\
+        result = ItemRating.query. \
+            with_entities(func.avg(ItemRating.rate).label("average")). \
             filter(ItemRating.rated_id == item.id).all()
         print("Item %s rating: %s" % (item.id, round(result[0][0], 1) if result[0][0] is not None else result[0][0]))
 
     print("--------")
-    query = ItemRating.query.\
-        with_entities(func.count(ItemRating.rater_id).label("cnt"), ItemRating.rate).\
+    query = ItemRating.query. \
+        with_entities(func.count(ItemRating.rater_id).label("cnt"), ItemRating.rate). \
         group_by(ItemRating.rate)
     result = query.all()
     print("All items rate:", result)
@@ -359,22 +404,22 @@ def item_upvote_test2():
     # ?, ? represents (current user, current item)
     # ----------------
 
-    subq = ItemRating.query.filter(ItemRating.rated_id == item.id).\
-        join(User, User.id == ItemRating.rater_id).\
-        outerjoin(ItemUpvote, ItemRating.id == ItemUpvote.rating_id).\
-        group_by(ItemRating.id, User.name, ItemRating.rated_id, ItemRating.comment, ItemRating.rate, ItemRating.ts).\
+    subq = ItemRating.query.filter(ItemRating.rated_id == item.id). \
+        join(User, User.id == ItemRating.rater_id). \
+        outerjoin(ItemUpvote, ItemRating.id == ItemUpvote.rating_id). \
+        group_by(ItemRating.id, User.name, ItemRating.rated_id, ItemRating.comment, ItemRating.rate, ItemRating.ts). \
         with_entities(
-            ItemRating.id.label("rating_id"),
-            User.name.label("name"),
-            ItemRating.rated_id.label("rated_id"),
-            ItemRating.comment.label("comment"),
-            ItemRating.rate.label("rate"),
-            ItemRating.ts.label("ts"),
-            func.count(ItemUpvote.voter_id).label("num_upvotes"),
-            func.max(
-                case([(ItemUpvote.voter_id == user.id, 1)], else_=0)
-            )
+        ItemRating.id.label("rating_id"),
+        User.name.label("name"),
+        ItemRating.rated_id.label("rated_id"),
+        ItemRating.comment.label("comment"),
+        ItemRating.rate.label("rate"),
+        ItemRating.ts.label("ts"),
+        func.count(ItemUpvote.voter_id).label("num_upvotes"),
+        func.max(
+            case([(ItemUpvote.voter_id == user.id, 1)], else_=0)
         )
+    )
 
     # q = subq.\
     #     join(ItemUpvote, subq.c.rating_id == ItemUpvote.rating_id). \
@@ -415,7 +460,7 @@ def conversations():
     senders = aliased(User)
     receivers = aliased(User)
     q = Conversation.query.filter((Conversation.sender_id == uoi.id) | (Conversation.receiver_id == uoi.id))
-    q = q.join(senders, senders.id == Conversation.sender_id).\
+    q = q.join(senders, senders.id == Conversation.sender_id). \
         join(receivers, receivers.id == Conversation.receiver_id)
     q = q.with_entities(
         senders.name.label("Sender"),
@@ -434,9 +479,7 @@ def conversations():
 
 def contacts():
     print("--------\n\n\n--------")
-    uoi = User.query.filter(User.id == 22).all()[0]
-
-    ooi = User.query.filter((User.id < 22) & (User.id > 17)).all()
+    uoi = User.query.filter(User.id == 17).all()[0]
 
     roi = Conversation.query.filter((Conversation.sender_id == uoi.id) | (Conversation.receiver_id == uoi.id))
 
@@ -449,30 +492,28 @@ def contacts():
 
     roi = roi.subquery()
 
-    senders = Conversation.query.\
-        join(roi, (roi.c.Other_id == Conversation.sender_id) & (roi.c.Ts == Conversation.ts)).\
-        filter(Conversation.receiver_id == uoi.id).\
-        join(User, User.id == roi.c.Other_id).\
+    senders = Conversation.query. \
+        join(roi, (roi.c.Other_id == Conversation.sender_id) & (roi.c.Ts == Conversation.ts)). \
+        filter(Conversation.receiver_id == uoi.id). \
+        join(User, User.id == roi.c.Other_id). \
         with_entities(
-            Conversation.ts.label("Timestamp"),
-            Conversation.content.label("Content"),
-            User.name.label("Other"),
-            Conversation.priority.label("Priority")
-        )
+        Conversation.ts.label("Timestamp"),
+        Conversation.content.label("Content"),
+        User.name.label("Other")
+    )
 
     print("--------\n\nSenders:\n\n--------")
     print(senders.all())
 
-    receivers = Conversation.query.\
-        join(roi, (roi.c.Other_id == Conversation.receiver_id) & (roi.c.Ts == Conversation.ts)).\
-        filter(Conversation.sender_id == uoi.id).\
+    receivers = Conversation.query. \
+        join(roi, (roi.c.Other_id == Conversation.receiver_id) & (roi.c.Ts == Conversation.ts)). \
+        filter(Conversation.sender_id == uoi.id). \
         join(User, User.id == roi.c.Other_id). \
         with_entities(
-            Conversation.ts.label("Timestamp"),
-            Conversation.content.label("Content"),
-            User.name.label("Other"),
-            Conversation.priority.label("Priority")
-        )
+        Conversation.ts.label("Timestamp"),
+        Conversation.content.label("Content"),
+        User.name.label("Other")
+    )
     print("--------\n\nReceivers:\n\n--------")
     print(receivers.all())
 
@@ -482,40 +523,38 @@ def contacts():
 
     print("--------\n\n\n--------")
     for item in map(
-            lambda x: {"Other": x.Other, "Content": x.Content, "Timestamp": x.Timestamp, "Priority": x.Priority},
-            senders.union(receivers).order_by(Conversation.ts, desc(Conversation.priority)).all()):
+            lambda x: {"Other": x.Other, "Content": x.Content, "Timestamp": x.Timestamp},
+            senders.union(receivers).order_by(Conversation.ts).all()):
         print(item)
 
     return
-
-contacts()
 
 
 def find_rating_average_test():
     soi = 15
     coi = 6
-    average = SellerRating.query.with_entities(func.avg(SellerRating.rate).label("average")).\
+    average = SellerRating.query.with_entities(func.avg(SellerRating.rate).label("average")). \
         filter(SellerRating.rated_id == soi).all()[0][0]
 
-    q = SellerRating.query.filter(SellerRating.rated_id == soi).\
-        join(User, User.id == SellerRating.rater_id).\
-        outerjoin(SellerUpvote, SellerRating.id == SellerUpvote.rating_id).\
-        group_by(SellerRating.id, User.name, SellerRating.rated_id, SellerRating.comment, SellerRating.rate, SellerRating.ts).\
+    q = SellerRating.query.filter(SellerRating.rated_id == soi). \
+        join(User, User.id == SellerRating.rater_id). \
+        outerjoin(SellerUpvote, SellerRating.id == SellerUpvote.rating_id). \
+        group_by(SellerRating.id, User.name, SellerRating.rated_id, SellerRating.comment, SellerRating.rate, SellerRating.ts). \
         with_entities(
-            SellerRating.id.label("rating_id"),
-            User.name.label("name"),
-            SellerRating.rated_id.label("rated_id"),
-            SellerRating.comment.label("comment"),
-            SellerRating.rate.label("rate"),
-            SellerRating.ts.label("ts"),
-            func.count(SellerUpvote.voter_id).label("num_upvotes"),
-            func.max(
-                case([(SellerUpvote.voter_id == coi, 1)], else_=0)
-            ).label("is_voted")
-        )
+        SellerRating.id.label("rating_id"),
+        User.name.label("name"),
+        SellerRating.rated_id.label("rated_id"),
+        SellerRating.comment.label("comment"),
+        SellerRating.rate.label("rate"),
+        SellerRating.ts.label("ts"),
+        func.count(SellerUpvote.voter_id).label("num_upvotes"),
+        func.max(
+            case([(SellerUpvote.voter_id == coi, 1)], else_=0)
+        ).label("is_voted")
+    )
 
-    distribution = SellerRating.query.filter(SellerRating.rated_id == soi).\
-        with_entities(SellerRating.rate, func.count(SellerRating.rater_id).label("cnt")).\
+    distribution = SellerRating.query.filter(SellerRating.rated_id == soi). \
+        with_entities(SellerRating.rate, func.count(SellerRating.rater_id).label("cnt")). \
         group_by(SellerRating.rate)
 
     current_review = SellerRating.query.filter(SellerRating.rated_id == soi, SellerRating.rater_id == coi)
@@ -527,3 +566,8 @@ def find_rating_average_test():
     # for item in ratings:
     #     print(item)
     #     print("----")
+
+
+
+
+find_rating_average_test()
