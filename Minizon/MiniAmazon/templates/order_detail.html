@@ -26,7 +26,7 @@
     {%  if order_detail %}
     {% for each_order in order_detail %}
         <tr>
-            <td><h5 class="mt-4">{{ each_order.item.name }}</h5></td>
+            <td><a href= "{{ url_for('item_info_page', id=each_order.item_id) }}"><h5 class="mt-4 ml-4">{{ each_order.item.name }}</h5></a></td>
             <td><h5 class="mt-4">{{ each_order.quantity }}</h5></td>
             <td><h5 class="mt-4">{{ each_order.price }}</h5></td>
             <td><h5 class="mt-4">{{ each_order.seller_id }}</h5></td>
