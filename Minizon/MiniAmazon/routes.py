@@ -685,6 +685,14 @@ def inventory_page():
     inventory = None
     query = None
     form = InventoryForm()
+    labels = []
+    values = []
+    if request.method == 'GET':
+        query = Inventory.query.filter(Inventory.seller_id==current_user.id)
+        inventory = query.all()
+        for item in inventory:
+            labels.append(item.item.name)
+            values.append(item.quantity)
     if request.method == 'POST':
         if form.validate_on_submit():
             # process search
@@ -700,8 +708,10 @@ def inventory_page():
         if form.errors != {}:
             for err_msg in form.errors.values():
                 flash(f'Error: {err_msg}', category='danger')
-
-    return render_template('inventory.html', inventory=inventory, form=form)
+        for item in inventory:
+            labels.append(item.item.name)
+            values.append(item.quantity)
+    return render_template('inventory.html', inventory=inventory, form=form, labels=labels, values=values)
 
 @app.route('/inventory_edit/<int:id>', methods=['GET', 'POST'])
 @login_required
