@@ -170,7 +170,10 @@
 
             <script>
                 function submitReview(current_user, current_item) {
-                    if (!{{ reviewable }}) { return ; }
+                    if (!{{ reviewable }}) {
+                        alert("Cannot review since you did not make any purchase on this item");
+                        return ;
+                    }
                     let currcomment = document.getElementById("user-review-editor").value.trim();
                     if (currcomment == "") {
                         alert("Comments cannot be empty.");

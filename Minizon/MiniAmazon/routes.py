@@ -152,6 +152,21 @@ def abstract_edit_review(req, user, rating):
 
     assert argument['user'] == user, "Provided user is not current user"
 
+    ioi = argument['item']
+    uoi = argument['user']
+    if rating == ItemRating:
+        commentable = Order.query.filter(Order.buyer_id == uoi).\
+            join(Order_item, Order_item.order_id == Order.id).\
+            filter(Order_item.item_id == ioi).all()
+        assert len(commentable) > 0, "User did not made any purchase on this item"
+    elif rating == SellerRating:
+        commentable = Order.query.filter(Order.buyer_id == uoi). \
+            join(Order_item, Order_item.order_id == Order.id). \
+            filter(Order_item.seller_id == ioi).all()
+        assert len(commentable) > 0, "User did not made any purchase from this seller"
+    else:
+        assert False, "CATCH: UNEXPECTED RATING TYPE"
+
     q = get_current_review(rating, argument['item'], argument['user'])
 
     if len(q) == 0:
@@ -464,7 +479,6 @@ def item_info_page(id):
 
     user_inventory = item.user_inventory.all()
 
-    # TODO: Find if an item is reviewable
     commentable = Order.query.filter(Order.buyer_id == current_user.id).\
         join(Order_item, Order_item.order_id == Order.id).\
         filter(Order_item.item_id == id).all()
@@ -810,7 +824,8 @@ def fulfill(order_id,item_id):
     db.session.add(order_fulfill)
     db.session.commit()
     return redirect(url_for('sell_history_page'))
-    
+
+
 @app.route('/buy_history',methods=['GET', 'POST'])
 @login_required
 def buy_history_page():
@@ -1023,7 +1038,6 @@ def public_profile_page(id):
     commentable = Order.query.filter(Order.buyer_id == current_user.id).\
         join(Order_item, Order_item.order_id == Order.id).\
         filter(Order_item.seller_id == id).all()
-    print(commentable)
     commentable = len(commentable) > 0
 
     average, ratings, actuals, current_review = abstract_info(SellerRating, SellerUpvote, id, current_user.id)
@@ -1036,7 +1050,7 @@ def public_profile_page(id):
                            current=current_user,
                            user_review=current_review[0] if len(current_review) > 0 else None,
                            has_user_review=len(current_review) > 0,
-                           reviewable=commentable,
+                           reviewable="true" if commentable else "false",
                             )
 
 @app.route('/edit_info', methods=['GET', 'POST'])
@@ -1084,6 +1098,7 @@ def edit_user_page():
     form.balance_change.default = 0.0
     form.process()
     return render_template('edit_info.html', user=user, form = form)
+
     # TODO: Find if the user can comment the seller
     # commentable = Order.query.filter(Order.buyer_id == current_user.id).\
     #     join(Order_item, Order_item.order_id == Order.id).\

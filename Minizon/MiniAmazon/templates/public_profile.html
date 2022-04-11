@@ -103,6 +103,11 @@
 
             <script>
                 function submitReview(current_user, current_item) {
+                    if (!{{ reviewable }}) {
+                        alert("Cannot review since you did not make any purchase from this seller");
+                        return;
+                    }
+
                     let currcomment = document.getElementById("user-review-editor").value.trim();
                     if (currcomment == "") {
                         alert("Comments cannot be empty.");
