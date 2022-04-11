@@ -961,7 +961,7 @@ def checkout():
             db.session.delete(cart)
         current_user.balance = current_user.balance - total
         new_balance_change = Balance_change(user_id=current_user.id,
-                                            amount=total,
+                                            amount=-total,
                                             category='Purchase')
         db.session.add(order)
         db.session.add(current_user)
@@ -1029,7 +1029,7 @@ def edit_user_page():
             new_balance_change = None
             if form.balance_change.data < 0:
                 new_balance_change = Balance_change(user_id=user.id,
-                                    amount=min(-form.balance_change.data,Decimal(user.balance)),
+                                    amount=-(min(-form.balance_change.data,Decimal(user.balance))),
                                     category='Withdraw Balance'
                                     )
             elif form.balance_change.data > 0:
