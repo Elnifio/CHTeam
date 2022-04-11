@@ -220,16 +220,17 @@ def market_page():
         if form.validate_on_submit():
             # process search
             search = form.search.data
+
             if form.category.data == 'All':
                 # search for item with keyword in name and description
                 query = Item.query
             else:
                 query = Category.query.filter_by(name=form.category.data).first().items
-
-            query = query.filter(db.or_(
-                Item.name.ilike(f'%{search}%'),
-                Item.description.ilike(f'%{search}%')
-            ))
+            if search:
+                query = query.filter(db.or_(
+                    Item.name.ilike(f'%{search}%'),
+                    Item.description.ilike(f'%{search}%')
+                ))
 
             # process sort and order
             if form.order_by.data == 'Desc':
