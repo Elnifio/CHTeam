@@ -988,7 +988,7 @@ def checkout():
                                                 seller_id=cart.seller_id,
                                                 quantity=cart.quantity,
                                                 price=cart.price,
-                                                fulfill="NA"))
+                                                fulfill="Not Fulfilled"))
             db.session.add(inv)
             db.session.delete(cart)
         current_user.balance = current_user.balance - total

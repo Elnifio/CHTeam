@@ -39,7 +39,7 @@
         <th scope="col">Address</th>
 {#        <th scope="col">Item name</th>#}
         <th scope="col">Order Date</th>
-{#        <th scope="col">Quantity</th>#}
+        <th scope="col">Total Quantity</th>
         <th scope="col">Total Price</th>
         <th scope="col">Status</th>
         <th scope="col">Options</th>
@@ -55,7 +55,7 @@
             <td><h5 class="mt-4">{{ order.address }}</h5></td>
 {#            <td><h5 class="mt-4">{{ order.order_items.item.name }}</h5></td>#}
             <td><h5 class="mt-4">{{ order.Date }}</h5></td>
-{#            <td><h5 class="mt-4">{{ order.order_items.quantity }}</h5></td>#}
+            <td><h5 class="mt-4">{{ order.quantity }}</h5></td>
             <td><h5 class="mt-4">{{ order.total_price }}</h5></td>
             <td><h5 class="mt-4">{{ order.status }}</h5></td>
             <td>
