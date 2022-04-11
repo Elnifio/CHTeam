@@ -18,8 +18,8 @@ class Inventory(db.Model):
 
 class Item(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(length=60), nullable=False)
-    description = db.Column(db.Text, nullable=False)
+    name = db.Column(db.String(length=60), nullable=False, index=True)
+    description = db.Column(db.Text, nullable=False, index=True)
 
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=False)
     creator_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
