@@ -251,7 +251,8 @@ def register_page():
                                 email=form.email.data,
                                 address=form.address.data,
                                 password_plain=form.password1.data,
-                                balance=form.balance.data)
+                                balance=0
+                                )
         if User.query.filter_by(email=form.email.data).first():
             flash(f'Login Failed: email already exists.', category='danger')
             return redirect(url_for('register_page'))
@@ -1020,6 +1021,19 @@ def edit_user_page():
             user.address = form.address.data
             # user.password = form.password1.data
             user.password_plain = form.password1.data
+            # add to balance history
+            new_balance_change = None
+            if form.balance_change.data < 0:
+                new_balance_change = Balance_change(user_id=user.id,
+                                    amount=min(-form.balance_change.data,Decimal(user.balance)),
+                                    category='Withdraw Balance'
+                                    )
+            elif form.balance_change.data > 0:
+                new_balance_change = Balance_change(user_id=user.id,
+                                    amount=form.balance_change.data,
+                                    category='Add Balance'
+                                    )
+            db.session.add(new_balance_change)
             if form.balance_change.data + Decimal(user.balance) < 0:
                 user.balance = 0
             else:
@@ -1035,7 +1049,6 @@ def edit_user_page():
     form.balance_change.default = 0.0
     form.process()
     return render_template('edit_info.html', user=user, form = form)
-
     # TODO: Find if the user can comment the seller
     # commentable = Order.query.filter(Order.buyer_id == current_user.id).\
     #     join(Order_item, Order_item.order_id == Order.id).\

@@ -16,7 +16,7 @@ class RegisterForm(FlaskForm):
     email = StringField(label='Email Address:', validators=[Email(), DataRequired()])
     address = StringField(label='Delivery Address:', validators=[Length(max=100), DataRequired(),
                                                     Regexp(regex2, message="Address"+letter_constraint+", space.")])
-    balance = DecimalField(places=2, label="Balance", validators=[NumberRange(min=0.0)])
+    #balance = DecimalField(places=2, label="Balance", validators=[NumberRange(min=0.0)])
     password1 = PasswordField(label='Password:', validators=[Length(min=6, max=60), DataRequired(),
                                                     Regexp(regex, message="Password"+letter_constraint)])
     password2 = PasswordField(label='Confirm Password:', validators=[EqualTo('password1'), DataRequired()])
