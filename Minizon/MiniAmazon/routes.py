@@ -745,6 +745,21 @@ def sell_history_page():
     sell_order = None
     query = None
     form = SellHistoryForm()
+    popular = {}
+    labels = []
+    values = []
+    if request.method == 'GET':
+        query = Order_item.query.filter(Order_item.seller_id==current_user.id)
+        sell_order = query.join(Order, Order_item.order_id==Order.id).order_by(desc(Order.Date)).all()
+
+        for order in sell_order:
+            if order.item.name in popular:
+                popular[order.item.name] += 1
+            else:
+                popular[order.item.name] = 1
+        for key in popular:
+            labels.append(key)
+            values.append(popular[key])
     if request.method == 'POST':
         if form.validate_on_submit():
             # process search
@@ -760,11 +775,19 @@ def sell_history_page():
                     sell_order = query.join(Order, Order_item.order_id==Order.id).order_by(asc(Order.Date)).all()
                 else:
                     sell_order = query.order_by(asc(Order_item.price)).all()
+            for order in sell_order:
+                if order.item.name in popular:
+                    popular[order.item.name] += 1
+                else:
+                    popular[order.item.name] = 1
+            for key in popular:
+                labels.append(key)
+                values.append(popular[key])
         if form.errors != {}:
             for err_msg in form.errors.values():
                 flash(f'Error: {err_msg}', category='danger')
 
-    return render_template('sell_history.html', sell_order=sell_order, form=form)
+    return render_template('sell_history.html', sell_order=sell_order, form=form, labels=labels, values=values)
 
 
 @app.route('/fulfill/<int:order_id>/<int:item_id>',methods=['GET', 'POST'])
