@@ -1012,3 +1012,22 @@ def receive_seller_review():
 @login_required
 def delete_seller_review():
     return abstract_delete_review(request, current_user.id, SellerRating)
+
+@app.route('/balance_history',methods=['GET', 'POST'])
+@login_required
+def balance_history_page():
+    balance_history = None
+    query = None
+    form = BalanceHistoryForm()
+    balance_history = Balance_change.query.filter(Balance_change.user_id == current_user.id).all()
+    if request.method == 'POST':
+        if form.validate_on_submit():
+            if form.order_by.data == 'Desc':
+                balance_history = Balance_change.query.filter(Balance_change.user_id == current_user.id).order_by(desc(Balance_change.ts)).all()
+            else:
+                balance_history = Balance_change.query.filter(Balance_change.user_id == current_user.id).order_by(asc(Balance_change.ts)).all()
+        if form.errors != {}:
+            for err_msg in form.errors.values():
+                flash(f'Error: {err_msg}', category='danger')
+
+    return render_template('balance_history.html', balance_history = balance_history, form = form)

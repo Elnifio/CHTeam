@@ -107,3 +107,7 @@ class SellHistoryForm(FlaskForm):
     sort_by = SelectField(label='Sort By', choices=['Date', 'Price'])
     order_by = SelectField(label='Order By', choices=['Desc', 'Asc'])
     submit = SubmitField(label='Submit')
+
+class BalanceHistoryForm(FlaskForm):
+    order_by = SelectField(label='Order By', choices=['Desc', 'Asc'])
+    submit = SubmitField(label='Submit')
