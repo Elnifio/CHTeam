@@ -269,4 +269,9 @@ class Order_item(db.Model):
     order = db.relationship('Order', backref='order_items')
     item = db.relationship('Item', backref='order_item')
 
-
+class Balance_change(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    amount = db.Column(db.Float, nullable=False)
+    ts = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    category = db.Column(db.String(length=30), nullable=False)

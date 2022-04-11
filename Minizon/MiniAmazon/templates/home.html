@@ -6,9 +6,10 @@
 
 {% block content %}
     <div class="container">
-        <a class="btn btn-outline btn-info mt-2 mb-2" href="{{ url_for('inventory_page') }}">More Info</a>
-        <a class="btn btn-outline btn-success mt-2 mb-2" href="{{ url_for('sell_history_page') }}">Sell</a>
-        <a class="btn btn-outline btn-success mt-2 mb-2" href="{{ url_for('buy_history_page') }}">Buy</a>
-        <a class="btn btn-outline btn-success mt-2 mb-2" href="{{ url_for('edit_user_page') }}">Edit User Info</a>
+        <a class="btn btn-outline btn-info mt-2 mb-2" href="{{ url_for('inventory_page') }}">Inventory Page</a>
+        <a class="btn btn-outline btn-success mt-2 mb-2" href="{{ url_for('sell_history_page') }}">Seller History</a>
+        <a class="btn btn-outline btn-success mt-2 mb-2" href="{{ url_for('buy_history_page') }}">Purchase History</a>
+        <a class="btn btn-outline btn-success mt-2 mb-2" href="{{ url_for('balance_history_page') }}">Balance Review</a>
+        <a class="btn btn-outline btn-success mt-2 mb-2" href="{{ url_for('edit_user_page') }}">Edit User Information</a>
     </div>
 {% endblock %}

@@ -1,9 +1,9 @@
 from MiniAmazon import app, db, ALLOWED_EXTENSIONS, bcrypt
 from flask import render_template, redirect, url_for, flash, request
 from MiniAmazon.models import Item, User, Category, ItemImage, Inventory, ItemRating, ItemUpvote, Conversation, \
-    SellerRating, SellerUpvote, Order, Order_item, Cart, Order, Order_item, Favorites
+    SellerRating, SellerUpvote, Order, Order_item, Cart, Order, Order_item, Favorites, Balance_change
 from MiniAmazon.forms import RegisterForm, LoginForm, ItemForm, MarketForm, SellForm, AddToCartForm, EditCartForm, ItemEditForm, \
-    SellForm, EditUserForm, InventoryForm, InventoryEditForm, SellHistoryForm, BuyHistoryForm
+    SellForm, EditUserForm, InventoryForm, InventoryEditForm, SellHistoryForm, BuyHistoryForm, BalanceHistoryForm
 from flask_login import login_user, login_required, logout_user, current_user
 from werkzeug.utils import secure_filename
 from sqlalchemy import func, case, desc, asc
@@ -773,8 +773,34 @@ def buy_history_page():
         if form.validate_on_submit():
             # process search
             query = Order.query.filter(Order.buyer_id == current_user.id)
-            # process sort and order
-            buy_order = query.join(Order_item, Order_item.order_id == Order.id).order_by(Order.Date.desc()).all()
+            if form.sort_by.data == 'Desc':
+                if form.search_by.data == 'All':
+                    buy_order = query.join(Order_item, Order_item.order_id == Order.id).order_by(desc(Order.Date)).all()
+                elif form.search_by.data == 'Item':
+                    search = form.search.data
+                    buy_order = query.join(Order_item, Order_item.order_id == Order.id).join(Item, Item.id==Order_item.item_id).filter(db.or_(
+                    Item.name.ilike(f'%{search}%'),
+                    Item.description.ilike(f'%{search}%')
+                    )).order_by(desc(Order.Date)).all()
+                elif form.search_by.data == 'Seller':
+                    search = form.search.data
+                    buy_order = query.join(Order_item, Order_item.order_id == Order.id).join(User, User.id==Order_item.seller_id).filter(db.or_(
+                    User.name.ilike(f'%{search}%'))
+                    ).order_by(desc(Order.Date)).all()
+            else:
+                if form.search_by.data == 'All':
+                    buy_order = query.join(Order_item, Order_item.order_id == Order.id).order_by(asc(Order.Date)).all()
+                elif form.search_by.data == 'Item':
+                    search = form.search.data
+                    buy_order = query.join(Order_item, Order_item.order_id == Order.id).join(Item, Item.id==Order_item.item_id).filter(db.or_(
+                    Item.name.ilike(f'%{search}%'),
+                    Item.description.ilike(f'%{search}%')
+                    )).order_by(asc(Order.Date)).all()
+                elif form.search_by.data == 'Seller':
+                    search = form.search.data
+                    buy_order = query.join(Order_item, Order_item.order_id == Order.id).join(User, User.id==Order_item.seller_id).filter(db.or_(
+                    User.name.ilike(f'%{search}%'))
+                    ).order_by(asc(Order.Date)).all()
         if form.errors != {}:
             for err_msg in form.errors.values():
                 flash(f'Error: {err_msg}', category='danger')
@@ -1029,3 +1055,22 @@ def receive_seller_review():
 @login_required
 def delete_seller_review():
     return abstract_delete_review(request, current_user.id, SellerRating)
+
+@app.route('/balance_history',methods=['GET', 'POST'])
+@login_required
+def balance_history_page():
+    balance_history = None
+    query = None
+    form = BalanceHistoryForm()
+    balance_history = Balance_change.query.filter(Balance_change.user_id == current_user.id).all()
+    if request.method == 'POST':
+        if form.validate_on_submit():
+            if form.order_by.data == 'Desc':
+                balance_history = Balance_change.query.filter(Balance_change.user_id == current_user.id).order_by(desc(Balance_change.ts)).all()
+            else:
+                balance_history = Balance_change.query.filter(Balance_change.user_id == current_user.id).order_by(asc(Balance_change.ts)).all()
+        if form.errors != {}:
+            for err_msg in form.errors.values():
+                flash(f'Error: {err_msg}', category='danger')
+
+    return render_template('balance_history.html', balance_history = balance_history, form = form)

@@ -79,7 +79,9 @@ class ItemEditForm(FlaskForm):
 
 
 class BuyHistoryForm(FlaskForm):
-    search_by = SelectField(label='Search By', choices=['All','Item', 'Seller', 'Date'])
+    search_by = SelectField(label='Search By', choices=['All','Item', 'Seller'])
+    # all: returns all purchase history in default order, regardless of key words
+    sort_by = SelectField(label='Sort By date', choices=['Desc', 'Asc'])
     search = StringField(label='Keyword', validators=[DataRequired(),
                                                       Regexp(regex, message="Keyword"+letter_constraint)])
     submit = SubmitField(label='Submit')
@@ -103,5 +105,9 @@ class InventoryEditForm(FlaskForm):
 
 class SellHistoryForm(FlaskForm):
     sort_by = SelectField(label='Sort By', choices=['Date', 'Price'])
+    order_by = SelectField(label='Order By', choices=['Desc', 'Asc'])
+    submit = SubmitField(label='Submit')
+
+class BalanceHistoryForm(FlaskForm):
     order_by = SelectField(label='Order By', choices=['Desc', 'Asc'])
     submit = SubmitField(label='Submit')
