@@ -685,6 +685,14 @@ def inventory_page():
     inventory = None
     query = None
     form = InventoryForm()
+    labels = []
+    values = []
+    if request.method == 'GET':
+        query = Inventory.query.filter(Inventory.seller_id==current_user.id)
+        inventory = query.all()
+        for item in inventory:
+            labels.append(item.item.name)
+            values.append(item.quantity)
     if request.method == 'POST':
         if form.validate_on_submit():
             # process search
@@ -700,8 +708,10 @@ def inventory_page():
         if form.errors != {}:
             for err_msg in form.errors.values():
                 flash(f'Error: {err_msg}', category='danger')
-
-    return render_template('inventory.html', inventory=inventory, form=form)
+        for item in inventory:
+            labels.append(item.item.name)
+            values.append(item.quantity)
+    return render_template('inventory.html', inventory=inventory, form=form, labels=labels, values=values)
 
 @app.route('/inventory_edit/<int:id>', methods=['GET', 'POST'])
 @login_required
@@ -961,7 +971,7 @@ def checkout():
             db.session.delete(cart)
         current_user.balance = current_user.balance - total
         new_balance_change = Balance_change(user_id=current_user.id,
-                                            amount=total,
+                                            amount=-total,
                                             category='Purchase')
         db.session.add(order)
         db.session.add(current_user)
@@ -1029,7 +1039,7 @@ def edit_user_page():
             new_balance_change = None
             if form.balance_change.data < 0:
                 new_balance_change = Balance_change(user_id=user.id,
-                                    amount=min(-form.balance_change.data,Decimal(user.balance)),
+                                    amount=-(min(-form.balance_change.data,Decimal(user.balance))),
                                     category='Withdraw Balance'
                                     )
             elif form.balance_change.data > 0:
