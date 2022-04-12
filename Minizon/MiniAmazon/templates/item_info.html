@@ -104,7 +104,7 @@
             {# Shows the summary statistics of the reviews #}
             <div class="card-header">
                 {% if num_reviews != 0 %}
-                    <h5 class="card-title">Average Rating: {{ average }} / 5</h5>
+                    <h5 class="card-title">Average Rating: {{ average }} / 5 (Total {{ num_reviews }} Ratings)</h5>
                     <div class="container-fluid">
                         {% for score in distribution %}
                             <div class="row" style="display:flex;align-items:center;">
@@ -322,8 +322,18 @@
                     </div>
                 </li>
 
+                <li class="list-group-item">
+                    <h3 class="card-title">Top {{ topN }} Upvoted Comments</h3>
+                </li>
+
                 {# Shows other users' review #}
                 {% for review in reviews if (has_user_review and review.rating_id != user_review.rating_id) or (not has_user_review) %}
+                    {% if loop.index == topN %}
+                        <li class="list-group-item">
+                            <h3 class="card-title">Other Comments</h3>
+                        </li>
+                    {% endif %}
+
                     <li class="list-group-item">
                         <div class="card">
                             <div class="card-body">

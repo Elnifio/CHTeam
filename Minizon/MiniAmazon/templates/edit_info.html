@@ -43,6 +43,86 @@
                 <br>
                 {{ form.submit(class="btn btn-lg btn-block btn-primary") }}
             </form>
+
+            <div class="row">
+                <div class="col">
+                    <ul class="list-group list-group-flush">
+                        {% for review in itemRatings %}
+                            <li class="list-group-item">
+                                <div class="card text-left">
+                                    <div class="card-body">
+                                        <h5 class="card-title">
+                                            {{ review.item.name }}
+                                        </h5>
+                                        <h6 class="card-subtitle mb-2 text-muted">
+                                            {# Score #}
+                                            {% for star_prop in boolean_mask(review) %}
+                                                {% if star_prop %}
+                                                    <i class="fa fa-star"></i>
+                                                {% else %}
+                                                    <i class="fa fa-star-o"></i>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </h6>
+                                        <p class="card-text">
+                                            {{ review.comment }}
+                                        </p>
+
+                                        <div class="d-flex">
+                                            <a class="flex-grow-1" href="{{ url_for("item_info_page", id=review.item.id) }}">
+                                                <i class="text-info fa fa-pencil"></i>
+                                                <span class="text-info">Edit</span>
+                                            </a>
+                                            <div>
+                                                <span class="text-secondary">Written on {{ format_time(review.ts) }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+
+                <div class="col">
+                    <ul class="list-group list-group-flush">
+                        {% for review in sellerRatings %}
+                            <li class="list-group-item">
+                                <div class="card text-left">
+                                    <div class="card-body">
+                                        <h5 class="card-title">
+                                            {{ review.seller.name }}
+                                        </h5>
+                                        <h6 class="card-subtitle mb-2 text-muted">
+                                            {# Score #}
+                                            {% for star_prop in boolean_mask(review) %}
+                                                {% if star_prop %}
+                                                    <i class="fa fa-star"></i>
+                                                {% else %}
+                                                    <i class="fa fa-star-o"></i>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </h6>
+                                        <p class="card-text">
+                                            {{ review.comment }}
+                                        </p>
+
+                                        <div class="d-flex">
+                                            <a class="flex-grow-1" href="{{ url_for("public_profile_page", id=review.seller.id) }}">
+                                                <i class="text-info fa fa-pencil"></i>
+                                                <span class="text-info">Edit</span>
+                                            </a>
+                                            <div>
+                                                <span class="text-secondary">Written on {{ format_time(review.ts) }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
         </div>
     </body>
 </div>
