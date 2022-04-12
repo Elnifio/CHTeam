@@ -1163,3 +1163,27 @@ def balance_history_page():
                 flash(f'Error: {err_msg}', category='danger')
 
     return render_template('balance_history.html', balance_history = balance_history, form = form)
+
+@app.route('/worked_buyer',methods=['GET', 'POST'])
+@login_required
+def worked_buyer_page():
+    worked_buyer = []
+    query = None
+    query = Order_item.query.filter(Order_item.seller_id==current_user.id)
+    buyer = query.all()
+    check_list = []
+    for each_buyer in buyer:
+        buyer_id = each_buyer.order.buyer_id
+        if buyer_id in check_list:
+            continue
+        else:
+            check_list.append(buyer_id)
+            average_rating = float(SellerRating.query.\
+                    with_entities(func.avg(SellerRating.rate).label("average")).\
+                    filter(SellerRating.rated_id == current_user.id and SellerRating.rater_id == buyer_id).all()[0][0])
+            number_of_messages = len(Conversation.query.filter(
+        (((Conversation.sender_id == current_user.id) & (Conversation.receiver_id == buyer_id)) |
+        ((Conversation.receiver_id == current_user.id) & (Conversation.sender_id == buyer_id)))).all())
+            worked_buyer.append({'buyer_id': buyer_id, 'average_rating': average_rating, 'number': number_of_messages})
+        
+    return render_template('worked_buyer.html', worked_buyer=worked_buyer)
