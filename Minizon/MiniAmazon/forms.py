@@ -8,16 +8,16 @@ letter_constraint = ' must contain only letters, numbers, underscore'
 regex = '^[a-zA-Z0-9_]*$'
 # including space
 regex2 = '^[a-zA-Z0-9_\s]*$'
-
+regex3 = '^[a-zA-Z0-9_,\s]*$'
 
 class RegisterForm(FlaskForm):
     username = StringField(label='User Name:', validators=
-    [Length(min=2, max=50), DataRequired(), Regexp(regex=regex, message="Username"+letter_constraint)])
+    [Length(min=2, max=50), DataRequired(), Regexp(regex=regex2, message="Username"+letter_constraint+", space.")])
     email = StringField(label='Email Address:', validators=[Email(), DataRequired()])
     address = StringField(label='Delivery Address:', validators=[Length(max=100), DataRequired(),
-                                                    Regexp(regex2, message="Address"+letter_constraint+", space.")])
+                                                    Regexp(regex3, message="Address"+letter_constraint+", space, comma.")])
     #balance = DecimalField(places=2, label="Balance", validators=[NumberRange(min=0.0)])
-    password1 = PasswordField(label='Password:', validators=[Length(min=6, max=60), DataRequired(),
+    password1 = PasswordField(label='Password:', validators=[Length(min=5, max=60), DataRequired(),
                                                     Regexp(regex, message="Password"+letter_constraint)])
     password2 = PasswordField(label='Confirm Password:', validators=[EqualTo('password1'), DataRequired()])
     submit = SubmitField(label='Create Account')
@@ -26,7 +26,7 @@ class RegisterForm(FlaskForm):
 class LoginForm(FlaskForm):
     email = StringField(label='Email Address', validators=[DataRequired(), Email()])
     password = PasswordField(label='Password', validators=[DataRequired(),
-                                                           Regexp(regex, message="Password"+letter_constraint)])
+                                                           Regexp(regex2, message="Password"+letter_constraint+", space.")])
     submit = SubmitField(label='Login')
 
 
@@ -87,11 +87,11 @@ class BuyHistoryForm(FlaskForm):
 
 class EditUserForm(FlaskForm):
     username = StringField(label='User Name:', validators=
-    [Length(min=2, max=50), DataRequired(), Regexp(regex=regex, message="Username"+letter_constraint)])
+    [Length(min=2, max=50), DataRequired(), Regexp(regex=regex2, message="Username"+letter_constraint+", space.")])
     email = StringField(label='Email Address:', validators=[Email(), DataRequired()])
     address = StringField(label='Delivery Address:', validators=[Length(max=100), DataRequired(),
-                                                    Regexp(regex2, message="Address"+letter_constraint+" ,space")])
-    password1 = PasswordField(label='Password:', validators=[Length(min=6, max=60), DataRequired(),
+                                                    Regexp(regex3, message="Address"+letter_constraint+" ,space, comma.")])
+    password1 = PasswordField(label='Password:', validators=[Length(min=5, max=60), DataRequired(),
                                                     Regexp(regex, message="Password"+letter_constraint)])
     password2 = PasswordField(label='Confirm Password:', validators=[EqualTo('password1'), DataRequired()])
     balance_change = DecimalField(places=2, label='Balance Change', validators=[NumberRange(min=-1000.0, max=1000.0)])

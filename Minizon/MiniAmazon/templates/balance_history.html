@@ -11,13 +11,14 @@
     <div class="d-flex justify-content-center">
         <div class="p-2 bd-highlight">
             <div class="d-flex flex-row">
-                <h4 class="mr-3">Order by date: </h4>
-                {{ form.order_by(class="form-control") }}
+                <div class="mr-3"><h4>Order by date: </h4></div>
+
+                <div class="mr-3">{{ form.order_by(class="form-control") }}</div>
             </div>
         </div>
         <div class="p-2 bd-highlight">
             <div class="d-flex flex-row">
-                {{ form.submit(class="btn btn-lg btn-block btn-primary ml-3 p-0") }}
+                {{ form.submit(class="btn btn-lg btn-block btn-primary ml-7 pt-0 pb-1") }}
             </div>
         </div>
     </div>
