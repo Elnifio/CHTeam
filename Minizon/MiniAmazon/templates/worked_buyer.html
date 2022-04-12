@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+
+{% block title %}
+    sell_history
+{% endblock %}
+
+{% block content %}
+<div class="container">
+<hr/>
+<table class="table table-hover table-striped table-sm">
+    <thead class="thead-dark">
+    <tr>
+        <th scope="col">Buyer ID</th>
+        <th scope="col">Average Rating</th>
+        <th scope="col">Number of messages</th>
+        <th scope="col">Options</th>
+    </tr>
+    </thead>
+    <tbody>
+    <!-- Your rows inside the table HERE: -->
+    {%  if worked_buyer %}
+    {% for buyer in worked_buyer %}
+        <tr>
+            <td><h5 class="mt-4">{{ buyer.buyer_id }}</h5></td>
+            <td><h5 class="mt-4">{{ buyer.average_rating }}</h5></td>
+            <td><h5 class="mt-4">{{ buyer.number }}</h5></td>
+            <td>
+                <div class="mt-3">
+                <a class="btn btn-outline btn-info mt-2 mb-2" href="{{ url_for('public_profile_page', id=buyer.buyer_id) }}">Buyer Info</a>
+                </div>
+            </td>
+        </tr>
+    {% endfor %}
+    {% endif %}
+    </tbody>
+</table>
+</div>
+{% endblock %}
