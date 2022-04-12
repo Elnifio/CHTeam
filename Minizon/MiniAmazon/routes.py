@@ -30,11 +30,16 @@ def to_boolean_mask(rate):
 def format_time(t):
     return f"{t.month}/{t.day}/{t.year} {t.hour}:{t.minute}"
 
+
+ratings_top_n = 3
+
+
 # ----------------
 # ABSTRACTION FUNCTIONS OVER INTERFACE Rating & Upvote
 # ----------------
 def make_rating_query(rating, upvote, rated_oi, rater_oi):
     q = rating.query.filter(rating.rated_id == rated_oi). \
+        filter(rating.rater_id != rater_oi). \
         join(User, User.id == rating.rater_id). \
         outerjoin(upvote, rating.id == upvote.rating_id). \
         group_by(
@@ -54,8 +59,9 @@ def make_rating_query(rating, upvote, rated_oi, rater_oi):
         ).\
         order_by(desc(rating.ts))
 
-    top3 = q.order_by(desc(func.count(upvote.voter_id))).limit(3)
-
+    top_n = q.order_by(desc(func.count(upvote.voter_id))).limit(ratings_top_n)
+    q = q.filter(rating.id.not_in(top_n.with_entities(rating.id).subquery()))
+    q = top_n.union(q)
     return q
 
 
@@ -200,6 +206,10 @@ def abstract_delete_review(req, user, rating):
 
     db.session.commit()
     return {"success": True}
+
+
+def find_ratings(rating, uoi):
+    return rating.query.filter(rating.rater_id == uoi).order_by(desc(rating.ts))
 
 
 control_message = {
@@ -500,7 +510,8 @@ def item_info_page(id):
                            user_review=current_review[0] if len(current_review) > 0 else None,
                            has_user_review=len(current_review) > 0,
                            reviewable="true" if commentable else "false",
-                           user_inventory=user_inventory)
+                           user_inventory=user_inventory,
+                           topN=ratings_top_n)
 
 
 @app.route("/item_upvote", methods=['POST'])
@@ -1062,6 +1073,7 @@ def public_profile_page(id):
                            reviewable="true" if commentable else "false",
                             )
 
+
 @app.route('/edit_info', methods=['GET', 'POST'])
 @login_required
 def edit_user_page():
@@ -1106,26 +1118,16 @@ def edit_user_page():
     form.address.default = user.address
     form.balance_change.default = 0.0
     form.process()
-    return render_template('edit_info.html', user=user, form = form)
 
-    # TODO: Find if the user can comment the seller
-    # commentable = Order.query.filter(Order.buyer_id == current_user.id).\
-    #     join(Order_item, Order_item.order_id == Order.id).\
-    #     filter(Order_item.seller_id == id).all()
-    # commentable = len(commentable) > 0
-    commentable = True
 
-    average, ratings, actuals, current_review = abstract_info(SellerRating, SellerUpvote, id, current_user.id)
-
-    return render_template('public_profile.html', user=user,
-                           reviews=ratings,
-                           average=round(average, 1) if average is not None else average,
-                           distribution=actuals, num_reviews=len(ratings),
+    item_ratings = find_ratings(ItemRating, current_user.id)
+    seller_ratings = find_ratings(SellerRating, current_user.id)
+    return render_template('edit_info.html',
+                           user=user, form=form,
+                           itemRatings=item_ratings,
+                           sellerRatings=seller_ratings,
                            boolean_mask=to_boolean_mask,
-                           current=current_user,
-                           user_review=current_review[0] if len(current_review) > 0 else None,
-                           has_user_review=len(current_review) > 0,
-                           reviewable=commentable)
+                           format_time=format_time)
 
 
 @app.route("/seller_upvote", methods=['POST'])
