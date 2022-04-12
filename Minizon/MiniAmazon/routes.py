@@ -1163,6 +1163,8 @@ def balance_history_page():
         if form.errors != {}:
             for err_msg in form.errors.values():
                 flash(f'Error: {err_msg}', category='danger')
+    if request.method == 'GET':
+        balance_history = Balance_change.query.filter(Balance_change.user_id == current_user.id).order_by(asc(Balance_change.ts)).all()
 
     return render_template('balance_history.html', balance_history = balance_history, form = form)
 
