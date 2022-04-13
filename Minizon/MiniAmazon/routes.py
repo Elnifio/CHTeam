@@ -334,7 +334,7 @@ def logout_page():
 def start_message(id):
     sender = current_user.id
     receiver = id
-    print(f"Sender id: {sender}, Receiver ID: {receiver}")
+    # print(f"Sender id: {sender}, Receiver ID: {receiver}")
 
     q = Conversation.query.filter(
         ((Conversation.sender_id == sender) & (Conversation.receiver_id == receiver)) |
@@ -347,7 +347,7 @@ def start_message(id):
         db.session.commit()
     else:
         msg = q[-1]
-        print(q)
+        # print(q)
         msg.priority = 1
         db.session.commit()
     return redirect(url_for("conversation_page"))
@@ -392,7 +392,7 @@ def conversations():
     mapping = []
     for updated in to_be_updated.all():
         mapping.append({"id": updated.id, "priority": 0})
-    print(mapping)
+    # print(mapping)
     db.session.bulk_update_mappings(Conversation, mapping)
     db.session.commit()
 
@@ -631,7 +631,7 @@ def item_edit_page(id):
         flash(f'Sorry, you cannot edit this product since you are not the creator of {item.name}.', category='danger')
         return redirect(url_for('item_info_page', id=id))
     if request.method == 'POST':
-        print(form.item_name.data)
+        # print(form.item_name.data)
         item.name = form.item_name.data
         item.description = form.description.data
         item.category_id = form.category.data
@@ -1163,6 +1163,8 @@ def balance_history_page():
         if form.errors != {}:
             for err_msg in form.errors.values():
                 flash(f'Error: {err_msg}', category='danger')
+    if request.method == 'GET':
+        balance_history = Balance_change.query.filter(Balance_change.user_id == current_user.id).order_by(asc(Balance_change.ts)).all()
 
     return render_template('balance_history.html', balance_history = balance_history, form = form)
 

@@ -41,11 +41,12 @@
     {% endif %}
     </tbody>
 </table>
+    <div class="d-flex flex-row-reverse bd-highlight">
+        <h2> Total Price: {{order.total_price}}
+            <br>
+            Order Status: {{order.status}}
+        </h2>
+    </div>
 </div>
-<div class="d-flex flex-row-reverse bd-highlight">
-    <h2> Total Price: {{order.total_price}}
-        <br>
-        Order Status: {{order.status}}
-    </h2>
-</div>
+
 {% endblock %}
