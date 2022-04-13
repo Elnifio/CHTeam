@@ -1,7 +1,9 @@
 *.pyc
 Minizon/.idea/misc.xml
-Minizon/MiniAmazon/__pycache__/
+Minizon/MiniAmazon/__pycache__/*
 Minizon/.DS_Store
 *.xml
 AutomatedTest/node_modules/*
-AutomatedTest/*
+*.pdf
+AutomatedTest/cookies/*
+Minizon/MiniAmazon/static/*
