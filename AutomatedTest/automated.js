@@ -558,6 +558,8 @@ async function makeSell(name, browser) {
 async function run()  {
     log(`Started Simulating for ${N_USER} users`);
     let browser = await initialize();
+    
+    logConfig.indent += 1;
     for (let i = 0; i < N_USER; i++) {
         const name = `${USER_PREFIX}${i}`;
         await register(name, "123456", `Address for User ${i}`, browser);
@@ -583,6 +585,7 @@ async function run()  {
     }
 
     await browser.close();
+    logConfig.indent -= 1;
     log("Finished Simulating");
 }
 
