@@ -3,8 +3,9 @@
 On Mac:
 ```bash
 cd CHTeam/Minizon
+source env/bin/activate
 pip install requirements.txt
-export FLASK_APP = app.py
+export FLASK_APP=app.py
 flask run
 ```
 ## Project Structure
@@ -21,7 +22,7 @@ Minizon
 ├── app.py
 ├── requirements.txt
 ├── static
-└── venv
+└── env
     ├── bin
     ├── include
     ├── lib
