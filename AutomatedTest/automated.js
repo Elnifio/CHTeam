@@ -3,17 +3,42 @@ const puppeteer = require("puppeteer");
 
 const basePath = "./cookies/";
 
-const UPVOTE_P = 1;
-const MIN_PRICE = 10;
-const MAX_PRICE = 100;
+const UPVOTE_P = 0.5; // Controls the probability that a user will upvote a comment
+const MIN_PRICE = 10; // controls the minimum price that the user sets when selling an item
+const MAX_PRICE = 100; // controls the maximum price that the user sets when selling an item
 
-const MIN_QUANTITY = 1;
-const MAX_QUANTITY = 10;
-const SELL_P = 0.05;
-const BUY_P = 0.2;
+const MIN_QUANTITY = 1; // controls the min quantity that the user sets when selling an item
+const MAX_QUANTITY = 10; // controls the max quantity that the user sets when selling an item
 
+const SELL_P = 0.05; // the probability that the user will sell an item when scrolling through searching list
+const BUY_P = 0.2; // the probability that the user will buy an item when scrolling through searching list
+
+const MAX_ORDERS_PLACED = 30; // each user will fake at most this amount of orders
+
+const N_USER = 2;
+const USER_PREFIX = "usr";
+
+let logConfig = {indent: 0};
+function log(msg) {
+    let out = `[${(new Date()).toUTCString()}]`;
+    for (let i = 0; i < logConfig.indent; i++) {
+        out += " |  ";
+    }
+    out += msg;
+
+    console.log(out);
+}
+
+
+// Initialize the browser
 async function initialize() {
+    logConfig.indent += 1;
+    if (!fs.existsSync(basePath)) {
+        fs.mkdirSync(basePath);
+    }
     let browser = await puppeteer.launch();
+
+    logConfig.indent -= 1;
     return browser;
 }
 
@@ -29,15 +54,25 @@ function shuffle(arr) {
     }
 }
 
+
+// Tests for Register page
 async function register(name, password, address, browser) {
-    console.log(`Registering user ${name}`);
+    log(`Registering user ${name}`);
+    logConfig.indent += 1;
+    if (fs.existsSync(`${basePath}${name}.json`)) {
+        log("User " + name + " already exists, loading from cookie buffer");
+
+        logConfig.indent -= 1;
+        return browser;
+    }
+
     const email = `${name}@email.com`;
 
     const page = await browser.newPage();
-    await page.goto("http://127.0.0.1:5000/");
+    await page.goto("http://127.0.0.1:5000/register");
 
     // registers the account
-    await page.click("a.btn.btn-sm");
+    // await page.click("a.btn.btn-sm");
     await page.type("#username", name);
     await page.type("#email", email);
     await page.type("#address", address);
@@ -55,21 +90,29 @@ async function register(name, password, address, browser) {
         email: email,
         password: password,
         cookie: cookies
-    }
+    };
+
     fs.writeFileSync(`${basePath}${name}.json`, JSON.stringify(info), {encoding: "utf-8"});
-    console.log(`Register complete`);
+    log(`Register complete`);
+
+    logConfig.indent -= 1;
     return browser;
 }
 
+// Directly sets the cookie, bypassing the login page
 async function login(name, browser) {
-    console.log(`Loggin in user ${name}`);
+    logConfig.indent += 1;
+    log(`Loggin in user ${name}`);
     if (!fs.existsSync(`${basePath}${name}.json`)) {
-        console.warn(`User ${name} does not exist. Run Register first`);
+        log(`User ${name} does not exist. Run Register first`);
+
+        logConfig.indent -= 1;
         return;
     }
 
     if (browser == undefined) {
-        console.warn("Browser undefined");
+        log("Browser undefined");
+        logConfig.indent -= 1;
         return;
     }
 
@@ -78,15 +121,19 @@ async function login(name, browser) {
     const page = await browser.newPage();
     await page.setCookie(...info.cookie);
 
-    console.log(`Login complete for user ${name}`);
+    log(`Login complete for user ${name}`);
+    logConfig.indent -= 1;
     return {page, browser, info};
 }
 
+// Tests the search functionality
 async function findItems(name, browser) {
-    console.log("Finding item for user " + name);
+    log("Finding item for user " + name);
+    logConfig.indent += 1;
 
     const bundle = await login(name, browser);
     if (bundle == undefined) {
+        logConfig.indent -= 1;
         return;
     }
     const page = bundle.page;
@@ -102,21 +149,20 @@ async function findItems(name, browser) {
 
     await page.select("#category", choice);
 
-    console.log("Submitting the query");
+    log("Submitting the query");
     await Promise.all([
         page.click("#submit"),
         page.waitForNavigation({waitUntil: "networkidle2"}),
     ]);
 
-    console.log("Choosing items to buy");
+    log("Choosing items to buy");
     const links = await page.$$("tr a.btn-info");
+
+    info.items = [];
 
     for (let link of links) {
         if (Math.random() < BUY_P) {
             let href = await (await link.getProperty("href")).jsonValue();
-            if (info.items == undefined) {
-                info.items = [];
-            }
 
             if (info.items.includes(href)) {
                 continue;
@@ -126,14 +172,12 @@ async function findItems(name, browser) {
         }
     }
 
-    console.log("Choosing items to sell");
+    info.sells = [];
+    log("Choosing items to sell");
     const sellItems = await page.$$("tr a.btn-success");
     for (let sell of sellItems) {
         if (Math.random() < SELL_P) {
             let href = await (await sell.getProperty("href")).jsonValue();
-            if (info.sells == undefined) {
-                info.sells = [];
-            }
     
             if (info.sells.includes(href)) {
                 continue;
@@ -144,16 +188,21 @@ async function findItems(name, browser) {
     }
 
     fs.writeFileSync(`${basePath}${name}.json`, JSON.stringify(info), {encoding: 'utf-8'});
-    console.log("FindItem Complete");
+
+    log("FindItem Complete");
+    logConfig.indent -= 1;
     return browser;
 }
 
+// Tests Cart functionality
 async function addToCart(name, browser) {
-    console.log("Entering addToCart");
+    log("Entering addToCart");
+    logConfig.indent += 1;
 
     const bundle = await login(name, browser);
     if (bundle == undefined) {
-        console.warn("Bundle not exist, run register first");
+        log("Bundle not exist, run register first");
+        logConfig.indent -= 1;
         return;
     }
 
@@ -162,18 +211,19 @@ async function addToCart(name, browser) {
     const info = bundle.info;
 
     if (info.items == undefined) {
-        console.warn("Items undefined, run findItems first");
+        log("Items undefined, run findItems first");
+        logConfig.indent -= 1;
         return;
     }
 
-    console.log(`Visiting ${info.items.length} items`);
+    log(`Visiting ${info.items.length} items`);
 
     for (let url of info.items) {
         await page.goto(url);
 
         let choices = await page.$$("body > div:nth-child(5) > table > tbody > tr");
         if (choices.length == 0) {
-            console.warn(`No available inventory for item ${url}`);
+            log(`No available inventory for item ${url}`);
             continue;
         }
         shuffle(choices);
@@ -199,20 +249,23 @@ async function addToCart(name, browser) {
         ]);
     }
 
-    console.log("Exiting addToCart");
+    log("Exiting addToCart");
+    logConfig.indent -= 1;
     return browser;
 }
 
+// Tests add fund & User edit page
 async function addFund(name, bundle=undefined, browser) {
-
-    console.log(`Adding fund for ${name}`);
+    logConfig.indent += 1;
+    log(`Adding fund for ${name}`);
 
     if (bundle == undefined) {
         bundle = await login(name, browser);
     }
 
     if (bundle == undefined) {
-        console.warn("Bundle not exist, run register first");
+        log("Bundle not exist, run register first");
+        logConfig.indent -= 1;
         return;
     }
 
@@ -230,14 +283,18 @@ async function addFund(name, bundle=undefined, browser) {
         page.waitForNavigation({waitUntil: "networkidle2"}),
     ]);
 
-    console.log(`Added $1000 for ${name}`);
+    log(`Added $1000 for ${name}`);
+    logConfig.indent -= 1;
 }
 
+// Tests place order checkout functionality
 async function checkout(name, browser) {
-    console.log(`Checking out for ${name}`);
+    logConfig.indent += 1;
+    log(`Checking out for ${name}`);
     const bundle = await login(name, browser);
     if (bundle == undefined) {
-        console.warn("Bundle not exist, run register first");
+        log("Bundle not exist, run register first");
+        logConfig.indent -= 1;
         return;
     }
 
@@ -249,7 +306,8 @@ async function checkout(name, browser) {
 
     let items = await page.$$("body > div > table:nth-child(2) > tbody > tr");
     if (items.length == 0) {
-        console.warn("No items in cart, run addToCart first");
+        log("No items in cart, run addToCart first");
+        logConfig.indent -= 1;
         return;
     }
 
@@ -273,15 +331,20 @@ async function checkout(name, browser) {
 
     await page.pdf({path: "checked-out.pdf", format: "A4"});
 
-    console.log(`Checkout complete`);
+    log(`Checkout complete`);
+    logConfig.indent -= 1;
     return browser;
 }
 
+// Tests Review functionality
 async function makeOrderURLs(name, browser) {
-    console.log("Calling makeOrderURLs");
+    logConfig.indent += 1;
+
+    log("Calling makeOrderURLs");
     const bundle = await login(name, browser);
     if (bundle == undefined) {
-        console.warn("Bundle not exist, run register first");
+        log("Bundle not exist, run register first");
+        logConfig.indent -= 1;
         return;
     }
 
@@ -294,7 +357,8 @@ async function makeOrderURLs(name, browser) {
     let boughts = await page.$$("body > div > table > tbody > tr");
 
     if (boughts.length == 0) {
-        console.warn("No items bought; run checkout first");
+        log("No items bought; run checkout first");
+        logConfig.indent -= 1;
         return;
     }
 
@@ -303,7 +367,7 @@ async function makeOrderURLs(name, browser) {
     let itemURL = [];
     let sellerURL = [];
 
-    console.log(`Clicking ${orders.length} buttons`);
+    log(`Clicking ${orders.length} buttons`);
     for (let button of orders) {
         let p = await browser.newPage();
         let url = await (await button.getProperty("href")).jsonValue();
@@ -328,15 +392,20 @@ async function makeOrderURLs(name, browser) {
 
     info.urls = {item: itemURL, seller: sellerURL};
     fs.writeFileSync(`${basePath}${name}.json`, JSON.stringify(info), {encoding: "utf-8"});
-    console.log("makeOrderURLs complete");
+    log("makeOrderURLs complete");
+
+    logConfig.indent -= 1;
     return browser;
 }
 
 async function makeComment(name, browser) {
-    console.log(`Making comment for ${name}`);
+    logConfig.indent += 1;
+
+    log(`Making comment for ${name}`);
     const bundle = await login(name, browser);
     if (bundle == undefined) {
-        console.warn("Bundle not exist, run register first");
+        log("Bundle not exist, run register first");
+        logConfig.indent -= 1;
         return;
     }
 
@@ -345,11 +414,12 @@ async function makeComment(name, browser) {
     const info = bundle.info;
 
     if (info.urls == undefined) {
-        console.warn("Orders not exist");
+        log("Orders not exist");
+        logConfig.indent -= 1;
         return;
     }
 
-    console.log(`Creating comments for items`);
+    log(`Creating comments for items`);
     for (let item of info.urls.item) {
         await page.goto(item);
         let isReviewed = await page.$("#user-review-title");
@@ -365,13 +435,10 @@ async function makeComment(name, browser) {
 
         await page.type("#user-review-editor", `${info.email} bought and reviewed on this item.`);
 
-        await Promise.all([
-            page.click("#user-review-publish-icon"),
-            page.waitForNavigation({waitUntil: "networkidle2"}),
-        ]);
+        await page.click("#user-review-publish-icon");
     }
 
-    console.log(`Creating comments for sellers`);
+    log(`Creating comments for sellers`);
     for (let item of info.urls.seller) {
         await page.goto(item);
         let isReviewed = await page.$("#user-review-title");
@@ -387,21 +454,22 @@ async function makeComment(name, browser) {
 
         await page.type("#user-review-editor", `${info.email} bought something from this seller.`);
         
-        await Promise.all([
-            page.click("#user-review-publish-icon"),
-            page.waitForNavigation({waitUntil: "networkidle2"}),
-        ]);
+        await page.click("#user-review-publish-icon");
     }
 
-    console.log(`Make comment complete for ${name}`);
+    log(`Make comment complete for ${name}`);
+    logConfig.indent -= 1;
     return browser;
 }
 
+// Test upvote functionality
 async function clickUpvote(name, browser) {
-    console.log(`Clicking Upvote for ${name}`);
+    logConfig.indent += 1;
+    log(`Clicking Upvote for ${name}`);
     const bundle = await login(name, browser);
     if (bundle == undefined) {
-        console.warn("Bundle not exist, run register first");
+        log("Bundle not exist, run register first");
+        logConfig.indent -= 1;
         return;
     }
 
@@ -410,11 +478,12 @@ async function clickUpvote(name, browser) {
     const info = bundle.info;
 
     if (info.urls == undefined) {
-        console.warn("Lacking info urls, run checkout first");
+        log("Lacking info urls, run checkout first");
+        logConfig.indent -= 1;
         return;
     }
 
-    console.log("Clicking upvote for items");
+    log("Clicking upvote for items");
     for (let item of info.urls.item) {
         await page.goto(item);
         let upvoteButtons = await page.$$("i.fa-thumbs-o-up");
@@ -426,7 +495,7 @@ async function clickUpvote(name, browser) {
         }
     }
 
-    console.log(`Clicking upvote for sellers`);
+    log(`Clicking upvote for sellers`);
     for (let item of info.urls.seller) {
         await page.goto(item);
         let upvoteButtons = await page.$$("i.fa-thumbs-o-up");
@@ -438,14 +507,18 @@ async function clickUpvote(name, browser) {
         }
     }
 
+    logConfig.indent -= 1;
     return browser;
 }
 
-async function makeSell(name, browser) {d
-    console.log(`Making sell for ${name}`);
+// Test sell item functionality
+async function makeSell(name, browser) {
+    logConfig.indent += 1;
+    log(`Making sell for ${name}`);
     const bundle = await login(name, browser);
     if (bundle == undefined) {
-        console.warn("Bundle not exist, run register first");
+        log("Bundle not exist, run register first");
+        logConfig.indent -= 1;
         return;
     }
 
@@ -454,7 +527,8 @@ async function makeSell(name, browser) {d
     const info = bundle.info;
 
     if (info.sells == undefined) {
-        console.warn(`Sells property undefined, run findItems first`);
+        log(`Sells property undefined, run findItems first`);
+        logConfig.indent -= 1;
         return;
     }
 
@@ -475,19 +549,41 @@ async function makeSell(name, browser) {d
         ]);
     }
 
-    console.log("Make Sell success");
+    log("Make Sell success");
 
+    logConfig.indent -= 1;
     return browser;
 }
 
-// const name = "name05"
+async function run()  {
+    log(`Started Simulating for ${N_USER} users`);
+    let browser = await initialize();
+    for (let i = 0; i < N_USER; i++) {
+        const name = `${USER_PREFIX}${i}`;
+        await register(name, "123456", `Address for User ${i}`, browser);
+    }
 
-// initialize().
-// // then(x => register(name, "123456", "Address for name06", x)).
-// // then(x => findItems(name, x)).
-// then(x => clickUpvote(name, x)).
-// then((x) => x.close()).then(x => {console.log("Finished")});
+    for (let i = 0; i < N_USER; i++) {
+        const name = `${USER_PREFIX}${i}`;
 
-let i = 0;
+        let n_orders = Math.floor(Math.random() * MAX_ORDERS_PLACED) + 1;
+        for (let o = 0; o < n_orders; o++) {
+            await findItems(name, browser)
+            .then((x) => addToCart(name, x))
+            .then(x => checkout(name, x))
+            .then(x => makeOrderURLs(name, x))
+            .then(x => makeComment(name, x))
+            .then(x => makeSell(name, x))
+        }
+    }
 
+    for (let i = N_USER-1; i >= 0; i--) {
+        const name = `${USER_PREFIX}${i}`;
+        await clickUpvote(name, browser);
+    }
 
+    await browser.close();
+    log("Finished Simulating");
+}
+
+run();
