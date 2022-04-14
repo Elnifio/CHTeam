@@ -749,6 +749,7 @@ def inventory_edit_page(id):
         if form.validate_on_submit():
             # check user never sell item
             record = Inventory.query.filter(Inventory.seller_id==current_user.id and Inventory.item_id == item.id).first()
+            print(id)
             if form.quantity.data == 0:
                 db.session.delete(record)
                 db.session.commit()
@@ -757,6 +758,10 @@ def inventory_edit_page(id):
             else:
                 record.quantity = form.quantity.data
                 record.price = form.price.data
+                carts = Cart.query.filter(Cart.seller_id==current_user.id,
+                                                                               Cart.item_id==item.id).all()
+                for c in carts:
+                    c.price = form.price.data
                 db.session.add(record)
                 db.session.commit()
                 flash(f'Inventory Edit Success! Your quantity of {item.name} are edit as {form.quantity.data} now.',

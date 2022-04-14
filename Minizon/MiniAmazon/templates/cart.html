@@ -32,9 +32,9 @@
                     <td><h5 class="mt-4">{{ item_cart.quantity }}</h5></td>
                     <td>
                         <div class="mt-3">
-                            <a class="btn btn-outline btn-info mt-2 mb-2" href="{{ url_for('cart_edit_page', item_id=item_cart.item_id, seller_id=item_cart.seller_id) }}">Edit</a>
-                            <a class="btn btn-outline btn-success mt-2 mb-2" href="{{ url_for('favorites_add', item_id=item_cart.item_id, seller_id=item_cart.seller_id) }}">Save for later</a>
-                            <a class="btn btn-outline btn-danger mt-2 mb-2" href="{{ url_for('remove_cart', item_id=item_cart.item_id, seller_id=item_cart.seller_id) }}">Remove</a>
+                            <a class="btn btn-outline btn-info mt-0 mb-2" href="{{ url_for('cart_edit_page', item_id=item_cart.item_id, seller_id=item_cart.seller_id) }}">Edit</a>
+                            <a class="btn btn-outline btn-success mt-0 mb-2" href="{{ url_for('favorites_add', item_id=item_cart.item_id, seller_id=item_cart.seller_id) }}">Save for later</a>
+                            <a class="btn btn-outline btn-danger mt-0 mb-2" href="{{ url_for('remove_cart', item_id=item_cart.item_id, seller_id=item_cart.seller_id) }}">Remove</a>
                         </div>
                     </td>
                 <tr>
