@@ -5,5 +5,7 @@ Minizon/.DS_Store
 *.xml
 AutomatedTest/node_modules/*
 *.pdf
+*.csv
 AutomatedTest/cookies/*
 Minizon/MiniAmazon/static/*
+dumpdata.py

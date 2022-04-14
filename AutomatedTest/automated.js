@@ -10,14 +10,15 @@ const MAX_PRICE = 100; // controls the maximum price that the user sets when sel
 const MIN_QUANTITY = 1; // controls the min quantity that the user sets when selling an item
 const MAX_QUANTITY = 10; // controls the max quantity that the user sets when selling an item
 
-const SELL_P = 0.01; // the probability that the user will sell an item when scrolling through searching list
-const BUY_P = 0.01; // the probability that the user will buy an item when scrolling through searching list
+const SELL_P = 0.05; // the probability that the user will sell an item when scrolling through searching list
+const BUY_P = 0.2; // the probability that the user will buy an item when scrolling through searching list
 
-const MAX_ORDERS_PLACED = 1; // each user will fake at most this amount of orders
+const MAX_ORDERS_PLACED = 10; // each user will fake at most this amount of orders
 
-const N_USER = 2;
-const USER_PREFIX = "usr";
+const N_USER = 30; // Number of users to fake
 
+const USER_PREFIX = "RegisteredUser"; // User Prefix, do not add space since the email directly formats it as <USER_PREFIX>@email.com
+ 
 let logConfig = {indent: 0};
 function log(msg) {
     let out = `[${(new Date()).toUTCString()}]`;
@@ -26,7 +27,7 @@ function log(msg) {
     }
     out += msg;
 
-    console.log(out);
+    console.log(msg);
 }
 
 
@@ -69,7 +70,7 @@ async function register(name, password, address, browser) {
     const email = `${name}@email.com`;
 
     const page = await browser.newPage();
-    await page.goto("http://127.0.0.1:5000/register");
+    await page.goto("http://127.0.0.1:5000/register", {waitUntil: "networkidle0"});
 
     // registers the account
     // await page.click("a.btn.btn-sm");
@@ -140,9 +141,13 @@ async function findItems(name, browser) {
     browser = bundle.browser;
     const info = bundle.info;
 
-    await page.goto("http://127.0.0.1:5000/market");
+    await page.goto("http://127.0.0.1:5000/market", {waitUntil: "networkidle0"});
+
+    await page.pdf({path: "logincomplete.pdf", format: "A4"});
 
     const choices = await page.$("#category");
+    await page.pdf({path: "test.pdf", format: "a4"});
+    
     const options = await choices.$$("option");
 
     const choice = await (await options[Math.floor(Math.random() * (options.length - 1)) + 1].getProperty("value")).jsonValue();
@@ -219,7 +224,7 @@ async function addToCart(name, browser) {
     log(`Visiting ${info.items.length} items`);
 
     for (let url of info.items) {
-        await page.goto(url);
+        await page.goto(url, {waitUntil: "networkidle0"});
 
         let choices = await page.$$("body > div:nth-child(5) > table > tbody > tr");
         if (choices.length == 0) {
@@ -273,7 +278,7 @@ async function addFund(name, bundle=undefined, browser) {
     browser = bundle.browser;
     const info = bundle.info;
 
-    await page.goto("http://127.0.0.1:5000/edit_info");
+    await page.goto("http://127.0.0.1:5000/edit_info", {waitUntil: "networkidle0"});
     await page.type("#balance_change", "100");
     await page.type("#password1", info.password);
     await page.type("#password2", info.password);
@@ -302,7 +307,7 @@ async function checkout(name, browser) {
     browser = bundle.browser;
     const info = bundle.info;
 
-    await page.goto("http://127.0.0.1:5000/cart");
+    await page.goto("http://127.0.0.1:5000/cart", {waitUntil: "networkidle0"});
 
     let items = await page.$$("body > div > table:nth-child(2) > tbody > tr");
     if (items.length == 0) {
@@ -325,7 +330,7 @@ async function checkout(name, browser) {
     }
 
     await Promise.all([
-        page.goto("http://127.0.0.1:5000/checkout"),
+        page.goto("http://127.0.0.1:5000/checkout", {waitUntil: "networkidle0"}),
         page.waitForNavigation({waitUntil: "networkidle2"}),
     ]);
 
@@ -352,7 +357,7 @@ async function makeOrderURLs(name, browser) {
     browser = bundle.browser;
     const info = bundle.info;
 
-    await page.goto("http://127.0.0.1:5000/buy_history");
+    await page.goto("http://127.0.0.1:5000/buy_history", {waitUntil: "networkidle0"});
 
     let boughts = await page.$$("body > div > table > tbody > tr");
 
@@ -421,7 +426,7 @@ async function makeComment(name, browser) {
 
     log(`Creating comments for items`);
     for (let item of info.urls.item) {
-        await page.goto(item);
+        await page.goto(item, {waitUntil: "networkidle0"});
         let isReviewed = await page.$("#user-review-title");
         isReviewed = await (await isReviewed.getProperty("innerText")).jsonValue();
         if (isReviewed != "Edit Review") {
@@ -440,7 +445,7 @@ async function makeComment(name, browser) {
 
     log(`Creating comments for sellers`);
     for (let item of info.urls.seller) {
-        await page.goto(item);
+        await page.goto(item, {waitUntil: "networkidle0"});
         let isReviewed = await page.$("#user-review-title");
         isReviewed = await (await isReviewed.getProperty("innerText")).jsonValue();
         if (isReviewed != "Edit Review") {
@@ -485,7 +490,7 @@ async function clickUpvote(name, browser) {
 
     log("Clicking upvote for items");
     for (let item of info.urls.item) {
-        await page.goto(item);
+        await page.goto(item, {waitUntil: "networkidle0"});
         let upvoteButtons = await page.$$("i.fa-thumbs-o-up");
         for (let button of upvoteButtons) {
             if (Math.random() < UPVOTE_P) {
@@ -497,7 +502,7 @@ async function clickUpvote(name, browser) {
 
     log(`Clicking upvote for sellers`);
     for (let item of info.urls.seller) {
-        await page.goto(item);
+        await page.goto(item, {waitUntil: "networkidle0"});
         let upvoteButtons = await page.$$("i.fa-thumbs-o-up");
         for (let button of upvoteButtons) {
             if (Math.random() < UPVOTE_P) {
@@ -533,7 +538,7 @@ async function makeSell(name, browser) {
     }
 
     for (let url of info.sells) {
-        await page.goto(url);
+        await page.goto(url, {waitUntil: "networkidle0"});
 
         let price = Math.floor(Math.random() * (MAX_PRICE - MIN_PRICE)) + MIN_PRICE;
 
@@ -560,29 +565,37 @@ async function run()  {
     let browser = await initialize();
     
     logConfig.indent += 1;
+
+    let ps = [];
     for (let i = 0; i < N_USER; i++) {
         const name = `${USER_PREFIX}${i}`;
-        await register(name, "123456", `Address for User ${i}`, browser);
+        ps.push(register(name, "123456", `Address for User ${i}`, browser));
     }
 
+    await Promise.all(ps);
+
+    ps = []
     for (let i = 0; i < N_USER; i++) {
         const name = `${USER_PREFIX}${i}`;
-
         let n_orders = Math.floor(Math.random() * MAX_ORDERS_PLACED) + 1;
         for (let o = 0; o < n_orders; o++) {
-            await findItems(name, browser)
+            ps.push(findItems(name, browser)
             .then((x) => addToCart(name, x))
             .then(x => checkout(name, x))
             .then(x => makeOrderURLs(name, x))
             .then(x => makeComment(name, x))
-            .then(x => makeSell(name, x))
-        }
+            .then(x => makeSell(name, x)));
+        }   
     }
+    await Promise.all(ps);
 
+    ps = [];
     for (let i = N_USER-1; i >= 0; i--) {
         const name = `${USER_PREFIX}${i}`;
-        await clickUpvote(name, browser);
+        ps.push(clickUpvote(name, browser));
     }
+
+    await Promise.all(ps);
 
     await browser.close();
     logConfig.indent -= 1;
