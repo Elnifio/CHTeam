@@ -35,6 +35,8 @@ jump = True            # Controls if we skips the data generation part
 # --------
 # DATA GENERATION SPECIFIC CONFIG
 # --------
+CONVERSATION_P = 0.3
+
 genconf = {
     'nusers': 15,               # Controls number of users generated
     "ncategories": 3,           # Controls number of categories generated
@@ -244,7 +246,6 @@ def create_conversation():
     # Finds all users
     users = User.query.all()[::-1]
     pairs = combinations(users, 2)
-    idx = 0
 
     # Finds current time
     now = datetime.now()
@@ -253,9 +254,9 @@ def create_conversation():
 
     # Creates pairs with number == genconf['nconversations']
     for pair in pairs:
-        # Stops when pairs >= genconf['nconversations']
-        if idx >= genconf['nconversations']:
-            break
+        random.seed(new_seed())
+        if random.uniform(0, 1) > CONVERSATION_P:
+            continue
 
         # Generates the length of the conversation
         random.seed(new_seed())
@@ -293,7 +294,6 @@ def create_conversation():
             basetime = basetime + timedelta(days=day, seconds=second)
 
         db.session.commit()
-        idx += 1
 
 
 # ----------------
@@ -570,4 +570,3 @@ def find_rating_average_test():
 
 
 
-find_rating_average_test()

@@ -10,10 +10,10 @@ const MAX_PRICE = 100; // controls the maximum price that the user sets when sel
 const MIN_QUANTITY = 1; // controls the min quantity that the user sets when selling an item
 const MAX_QUANTITY = 10; // controls the max quantity that the user sets when selling an item
 
-const SELL_P = 0.05; // the probability that the user will sell an item when scrolling through searching list
-const BUY_P = 0.2; // the probability that the user will buy an item when scrolling through searching list
+const SELL_P = 0.01; // the probability that the user will sell an item when scrolling through searching list
+const BUY_P = 0.01; // the probability that the user will buy an item when scrolling through searching list
 
-const MAX_ORDERS_PLACED = 30; // each user will fake at most this amount of orders
+const MAX_ORDERS_PLACED = 1; // each user will fake at most this amount of orders
 
 const N_USER = 2;
 const USER_PREFIX = "usr";
