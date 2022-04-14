@@ -214,18 +214,21 @@
                             {# A button for clicking upvotes #}
                             <div class="d-flex">
                                 <div class="flex-grow-1">
-                                    <i class="text-danger fa fa-thumbs-o-up"></i>
-                                    <span class="text-danger">
-                                        {{ user_review.num_upvotes if user_review else 0 }}
-                                    </span>
-                                </div>
+                                    <div onclick="deleteReview({{ current.id }}, {{ user.id }})"
+                                         style="display:{{ "block" if user_review else "none" }}"
+                                         id="user-review-delete-icon"
+                                         class="px-2">
+                                        <i class="text-danger fa fa-trash-o"></i>
+                                        <span class="text-danger">Delete</span>
+                                    </div>
 
-                                <div onclick="deleteReview({{ current.id }}, {{ user.id }})"
-                                     style="display:{{ "block" if user_review else "none" }}"
-                                     id="user-review-delete-icon"
-                                     class="px-2">
-                                    <i class="text-danger fa fa-trash-o"></i>
-                                    <span class="text-danger">Delete</span>
+                                    <div onclick="clearForm()"
+                                         style="display:{{ "none" if user_review else "block" }}"
+                                         id="user-review-clear-icon"
+                                         class="px-2">
+                                        <i class="text-danger fa fa-trash-o"></i>
+                                        <span class="text-danger">Clear</span>
+                                    </div>
                                 </div>
 
                                 <div onclick="displayEdit()"
@@ -234,14 +237,6 @@
                                      class="px-2">
                                     <i class="text-info fa fa-pencil"></i>
                                     <span class="text-info">Edit</span>
-                                </div>
-
-                                <div onclick="clearForm()"
-                                     style="display:{{ "none" if user_review else "block" }}"
-                                     id="user-review-clear-icon"
-                                     class="px-2">
-                                    <i class="text-danger fa fa-trash-o"></i>
-                                    <span class="text-danger">Clear</span>
                                 </div>
 
                                 <div onclick="submitReview({{ current.id }}, {{ user.id }})"
