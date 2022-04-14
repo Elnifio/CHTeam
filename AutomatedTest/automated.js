@@ -13,21 +13,22 @@ const MAX_QUANTITY = 10; // controls the max quantity that the user sets when se
 const SELL_P = 0.05; // the probability that the user will sell an item when scrolling through searching list
 const BUY_P = 0.2; // the probability that the user will buy an item when scrolling through searching list
 
-const MAX_ORDERS_PLACED = 10; // each user will fake at most this amount of orders
+const MAX_ORDERS_PLACED = 2; // each user will fake at most this amount of orders
 
-const N_USER = 30; // Number of users to fake
+const N_USER = 3; // Number of users to fake
 
 const USER_PREFIX = "RegisteredUser"; // User Prefix, do not add space since the email directly formats it as <USER_PREFIX>@email.com
  
 let logConfig = {indent: 0};
 function log(msg) {
-    let out = `[${(new Date()).toUTCString()}]`;
-    for (let i = 0; i < logConfig.indent; i++) {
+    let out = `[${(new Date()).toUTCString()}] `;
+    // for (let i = 0; i < logConfig.indent; i++) {
+    for (let i = 0; i < -1; i++) {
         out += " |  ";
     }
     out += msg;
 
-    console.log(msg);
+    console.log(out);
 }
 
 
@@ -566,36 +567,28 @@ async function run()  {
     
     logConfig.indent += 1;
 
-    let ps = [];
     for (let i = 0; i < N_USER; i++) {
         const name = `${USER_PREFIX}${i}`;
-        ps.push(register(name, "123456", `Address for User ${i}`, browser));
+        await (register(name, "123456", `Address for User ${i}`, browser));
     }
-
-    await Promise.all(ps);
-
-    ps = []
+    
     for (let i = 0; i < N_USER; i++) {
         const name = `${USER_PREFIX}${i}`;
         let n_orders = Math.floor(Math.random() * MAX_ORDERS_PLACED) + 1;
         for (let o = 0; o < n_orders; o++) {
-            ps.push(findItems(name, browser)
+            await (findItems(name, browser)
             .then((x) => addToCart(name, x))
             .then(x => checkout(name, x))
             .then(x => makeOrderURLs(name, x))
             .then(x => makeComment(name, x))
             .then(x => makeSell(name, x)));
-        }   
+        }
     }
-    await Promise.all(ps);
-
-    ps = [];
+    
     for (let i = N_USER-1; i >= 0; i--) {
         const name = `${USER_PREFIX}${i}`;
-        ps.push(clickUpvote(name, browser));
+        await (clickUpvote(name, browser));
     }
-
-    await Promise.all(ps);
 
     await browser.close();
     logConfig.indent -= 1;
