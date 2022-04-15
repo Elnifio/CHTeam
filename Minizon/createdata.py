@@ -249,7 +249,7 @@ def create_conversation():
 
     # Finds current time
     now = datetime.now()
-    year = now.year
+    year = now.year - 2
     month = now.month - 1
 
     # Creates pairs with number == genconf['nconversations']
