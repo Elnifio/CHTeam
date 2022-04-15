@@ -27,15 +27,4 @@ flask run
 - **routes.py**: routings between pages
 - **templates**: webpages (*all pages should inherit from base page*)
 - **app.py**: starting point 
-## Git Flow
-Branches:
-- main: version release
-- dev: development use (merge into this after compeleting a feature) 
-## Database Connection
-use remote connection by default
-- server: 34.207.91.24
-- user: postgres
-- databaase: postgres
-- password: password
-## Er Diagram
-![alt text](er.png)
+
