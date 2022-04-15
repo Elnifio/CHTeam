@@ -6,7 +6,7 @@ You can modify line 21 of MiniAmazon/\_\_init__.py to specify data base.
 ```code
 app.config['SQLALCHEMY_DATABASE_URI'] = db_uri_local
 ```
-To create all relationships, make your terminal opened CHTeam/Minizon. Then, execute the following code and exit.
+To create all relationships, execute the following code.
 ```bash
 cd CHTeam/Minizon
 python3
@@ -14,7 +14,7 @@ from MiniAmazon import db
 db.create_all()
 exit()
 ```
-Finally, run the following commands to start application and it is running on *http://127.0.0.1:5000/*
+Next, run the following commands to start application and it is running on *http://127.0.0.1:5000/*
 ```bash
 pip install requirements.txt
 export FLASK_APP = app.py
