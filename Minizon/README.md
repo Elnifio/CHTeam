@@ -8,6 +8,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = db_uri_local
 ```
 To create all relationships, make your terminal opened CHTeam/Minizon. Then, execute the following code and exit.
 ```bash
+cd CHTeam/Minizon
 python3
 from MiniAmazon import db
 db.create_all()
@@ -15,7 +16,6 @@ exit()
 ```
 Finally, run the following commands to start application and it is running on *http://127.0.0.1:5000/*
 ```bash
-cd CHTeam/Minizon
 pip install requirements.txt
 export FLASK_APP = app.py
 flask run
