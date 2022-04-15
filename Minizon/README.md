@@ -22,9 +22,8 @@ flask run
 ```
 
 ## Files
-```
+
 - **models.py**: matched classes of tables
 - **routes.py**: routings between pages
 - **templates**: webpages (*all pages should inherit from base page*)
 - **app.py**: starting point 
-```
