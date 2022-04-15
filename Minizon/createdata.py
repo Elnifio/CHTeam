@@ -30,7 +30,7 @@ def new_seed():
 # ----------------
 # CONFIGS
 # ----------------
-jump = True            # Controls if we skips the data generation part
+jump = False            # Controls if we skips the data generation part
 
 # --------
 # DATA GENERATION SPECIFIC CONFIG
@@ -308,11 +308,11 @@ def generate_data():
     # create_user()
     # create_categories()
     # create_items()
-    create_item_ratings()
-    create_item_upvotes()
-    # create_conversation()
-    create_seller_ratings()
-    create_seller_upvotes()
+#     create_item_ratings()
+#     create_item_upvotes()
+    create_conversation()
+#     create_seller_ratings()
+#     create_seller_upvotes()
     return
 
 
