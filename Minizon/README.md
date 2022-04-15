@@ -27,3 +27,4 @@ flask run
 - **routes.py**: routings between pages
 - **templates**: webpages (*all pages should inherit from base page*)
 - **app.py**: starting point 
+```
